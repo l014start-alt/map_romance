@@ -35,3 +35,9 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .word-keep { word-break: keep-all; }
+
+@keyframes pin-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(2.2); opacity: 0; }
+}
+.temp-pin-ring { animation: pin-pulse 1.4s ease-in-out infinite; }
