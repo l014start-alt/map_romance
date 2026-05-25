@@ -49,10 +49,26 @@ export default function App() {
   const [spots, setSpots] = useState<Spot[]>([])
   const [filter, setFilter] = useState<Filter>('all')
 
+  // localStorage 로컬 스팟 + Supabase 승인 스팟 병합 로딩
   useEffect(() => {
+    const LS_KEY = 'map_romance_local_spots'
+    let localSpots: Spot[] = []
+    try {
+      const raw = localStorage.getItem(LS_KEY)
+      if (raw) localSpots = JSON.parse(raw) as Spot[]
+    } catch { /* ignore */ }
+
+    // 로컬 스팟 먼저 즉시 표시
+    if (localSpots.length > 0) setSpots(localSpots)
+
+    // API 스팟 불러와서 병합 (중복 제거: API 스팟 우선)
     fetch('/api/spots?approved=true')
       .then((r) => r.json())
-      .then((data: Spot[]) => setSpots(data))
+      .then((apiSpots: Spot[]) => {
+        const apiIds = new Set(apiSpots.map((s) => s.id))
+        const localOnly = localSpots.filter((s) => !apiIds.has(s.id))
+        setSpots([...apiSpots, ...localOnly])
+      })
       .catch(() => {})
   }, [])
   const [showModal, setShowModal] = useState(false)
@@ -81,13 +97,38 @@ export default function App() {
     lat?: number; lng?: number
     category: Category; moment: string; nickname?: string
   }) => {
-    const res = await fetch('/api/spots', {
+    const LS_KEY = 'map_romance_local_spots'
+
+    // 로컬에서 즉시 approved:true로 표시할 스팟 생성
+    const newSpot: Spot = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      placeName: data.placeName,
+      address: data.address,
+      lat: data.lat,
+      lng: data.lng,
+      category: data.category,
+      moment: data.moment,
+      nickname: data.nickname,
+      approved: true,
+      createdAt: new Date().toISOString(),
+    }
+
+    // 상태 즉시 반영 → 지도에 핀 실시간 생성
+    setSpots((prev) => [newSpot, ...prev])
+
+    // localStorage 저장 → 새로고침 후에도 유지
+    try {
+      const raw = localStorage.getItem(LS_KEY)
+      const existing: Spot[] = raw ? (JSON.parse(raw) as Spot[]) : []
+      localStorage.setItem(LS_KEY, JSON.stringify([newSpot, ...existing]))
+    } catch { /* ignore */ }
+
+    // Supabase에도 백그라운드 전송 (approved:false, 관리자 검토용)
+    fetch('/api/spots', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    })
-    if (!res.ok) throw new Error('등록 실패')
-    // Spot is saved as approved:false — will appear after admin review.
+    }).catch(() => {})
   }, [])
 
   /* ── 공통 페이드 래퍼 ── */
@@ -287,11 +328,12 @@ export default function App() {
         </p>
       )}
 
-      {/* 기록 모달 */}
+      {/* 기록 모달 — position:absolute로 지도 위를 완전히 덮음 */}
       {showModal && (
         <RecordModal
           onClose={() => setShowModal(false)}
           onSubmit={handleSubmit}
+          defaultCenter={selectedRegion ? { lat: selectedRegion.lat, lng: selectedRegion.lng } : undefined}
         />
       )}
     </main>
