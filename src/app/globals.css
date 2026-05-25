@@ -41,3 +41,6 @@ body {
   50% { transform: scale(2.2); opacity: 0; }
 }
 .temp-pin-ring { animation: pin-pulse 1.4s ease-in-out infinite; }
+
+/* Leaflet divIcon 내부 뱃지 — 폰트 변수 보장 */
+.pin-badge { font-family: var(--font-brand), cursive; }

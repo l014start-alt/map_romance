@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
-import { Spot } from '@/types'
+import { LocationGroup } from '@/types'
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -17,11 +17,15 @@ const CATEGORY_COLOR: Record<string, string> = {
   사랑: '#C0392B',
 }
 
-function makePinIcon(category: string) {
+function makePinIcon(category: string, count: number) {
   const color = CATEGORY_COLOR[category] ?? '#800020'
+  const badge = count > 1
+    ? `<div class="pin-badge" style="position:absolute;top:-10px;left:6px;min-width:18px;height:18px;border-radius:10px;background:${color};border:2px solid #FAF8F5;color:#FAF8F5;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 2px 6px rgba(0,0,0,0.22);line-height:1;">${count}</div>`
+    : ''
   return L.divIcon({
     html: `
-      <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="position:relative;display:flex;flex-direction:column;align-items:center;">
+        ${badge}
         <div style="width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 0 4px ${color}28;"></div>
         <div style="width:1.5px;height:14px;background:${color};opacity:0.45;margin-top:1px;"></div>
       </div>`,
@@ -31,7 +35,6 @@ function makePinIcon(category: string) {
   })
 }
 
-// 임시 핀: 펄스 애니메이션 + 큰 원
 function makeTempPinIcon() {
   return L.divIcon({
     html: `
@@ -46,25 +49,23 @@ function makeTempPinIcon() {
 }
 
 interface MapProps {
-  spots: Spot[]
+  groups: LocationGroup[]
   center?: [number, number]
   zoom?: number
-  onMarkerClick?: (spot: Spot) => void
+  onGroupClick?: (group: LocationGroup) => void
   tempPin?: { lat: number; lng: number } | null
   onMapClick?: (lat: number, lng: number) => void
 }
 
-export default function NaverMap({ spots, center, zoom, onMarkerClick, tempPin, onMapClick }: MapProps) {
+export default function NaverMap({ groups, center, zoom, onGroupClick, tempPin, onMapClick }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const markersRef = useRef<L.Marker[]>([])
   const tempMarkerRef = useRef<L.Marker | null>(null)
   const onMapClickRef = useRef(onMapClick)
 
-  // 클릭 핸들러 ref 최신화 (클로저 문제 방지)
   useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
 
-  // 지도 초기화
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
 
@@ -80,7 +81,6 @@ export default function NaverMap({ spots, center, zoom, onMarkerClick, tempPin, 
       .addAttribution('© <a href="https://www.openstreetmap.org/copyright" style="color:#B5B0AB">OpenStreetMap</a>')
       .addTo(map)
 
-    // 지도 클릭 → onMapClick 호출
     map.on('click', (e: L.LeafletMouseEvent) => {
       onMapClickRef.current?.(e.latlng.lat, e.latlng.lng)
     })
@@ -90,36 +90,35 @@ export default function NaverMap({ spots, center, zoom, onMarkerClick, tempPin, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // center/zoom 변경 시 지도 이동
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map || !center) return
     map.flyTo(center, zoom ?? 13, { duration: 1.2 })
   }, [center, zoom])
 
-  // 스팟 마커 동기화
+  // 그룹 마커 동기화
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map) return
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
-    spots.forEach((spot) => {
-      if (spot.lat == null || spot.lng == null) return
-      const marker = L.marker([spot.lat, spot.lng], {
-        icon: makePinIcon(spot.category),
-        title: spot.placeName,
+
+    groups.forEach((group) => {
+      if (group.lat == null || group.lng == null) return
+      const primaryCategory = group.spots[0]?.category ?? '낭만'
+      const marker = L.marker([group.lat, group.lng], {
+        icon: makePinIcon(primaryCategory, group.spots.length),
+        title: group.placeName,
       }).addTo(map)
-      if (onMarkerClick) marker.on('click', () => onMarkerClick(spot))
+      if (onGroupClick) marker.on('click', () => onGroupClick(group))
       markersRef.current.push(marker)
     })
-  }, [spots, onMarkerClick])
+  }, [groups, onGroupClick])
 
-  // 임시 핀 동기화
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map) return
 
-    // 기존 임시 핀 제거
     if (tempMarkerRef.current) {
       tempMarkerRef.current.remove()
       tempMarkerRef.current = null
@@ -131,12 +130,10 @@ export default function NaverMap({ spots, center, zoom, onMarkerClick, tempPin, 
         zIndexOffset: 1000,
       }).addTo(map)
       tempMarkerRef.current = marker
-      // 부드럽게 해당 좌표로 이동 (현재 줌이 낮으면 올려줌)
       map.flyTo([tempPin.lat, tempPin.lng], Math.max(map.getZoom(), 15), { duration: 0.8 })
     }
   }, [tempPin])
 
-  // 픽 모드일 때 커서 변경
   useEffect(() => {
     const container = mapRef.current
     if (!container) return

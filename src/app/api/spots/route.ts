@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { placeName, address, lat, lng, category, moment, nickname } = body
+  const { placeName, address, lat, lng, category, moment, nickname, title } = body
 
   if (!placeName?.trim()) {
     return NextResponse.json({ error: '장소명은 필수입니다.' }, { status: 400 })
@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
   if (!CATEGORIES.includes(category as Category)) {
     return NextResponse.json({ error: '카테고리가 올바르지 않습니다.' }, { status: 400 })
   }
-  if (!moment?.trim() || (moment as string).trim().length > 120) {
-    return NextResponse.json({ error: '순간은 120자 이내로 입력해주세요.' }, { status: 400 })
+  if (!moment?.trim() || (moment as string).trim().length > 500) {
+    return NextResponse.json({ error: '순간은 500자 이내로 입력해주세요.' }, { status: 400 })
   }
 
   const row = {
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     category: category as Category,
     moment: (moment as string).trim(),
     nickname: (nickname as string | undefined)?.trim() || null,
+    title: (title as string | undefined)?.trim() || null,
     approved: false,
     created_at: new Date().toISOString(),
   }

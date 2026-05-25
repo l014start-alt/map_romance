@@ -24,7 +24,9 @@ export function rowToSpot(row: Record<string, unknown>): Spot {
     lng: (row.lng as number) ?? undefined,
     category: row.category as Category,
     moment: row.moment as string,
-    nickname: (row.nickname as string) ?? undefined,
+    nickname: (row.nickname as string) ?? '',
+    title: (row.title as string) ?? undefined,
+    imageUrl: (row.image_url as string) ?? undefined,
     approved: row.approved as boolean,
     createdAt: row.created_at as string,
   }
