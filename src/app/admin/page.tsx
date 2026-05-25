@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Spot } from '@/types'
 
@@ -16,6 +17,12 @@ const CATEGORY_COLOR: Record<string, string> = {
 export default function AdminPage() {
   const [spots, setSpots] = useState<Spot[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  const logout = async () => {
+    await fetch('/api/admin/logout', { method: 'POST' })
+    router.push('/admin/login')
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -103,12 +110,20 @@ export default function AdminPage() {
         >
           낭만여지도 · 관리자
         </span>
-        <button
-          onClick={() => void load()}
-          style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', cursor: 'pointer', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}
-        >
-          새로고침
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button
+            onClick={() => void load()}
+            style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', cursor: 'pointer', minHeight: '44px' }}
+          >
+            새로고침
+          </button>
+          <button
+            onClick={() => void logout()}
+            style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0392B', cursor: 'pointer', minHeight: '44px' }}
+          >
+            로그아웃
+          </button>
+        </div>
       </div>
 
       {/* 통계 바 */}
