@@ -6,7 +6,7 @@
 const BASE = 'https://nominatim.openstreetmap.org'
 const HEADERS: HeadersInit = {
   'Accept-Language': 'ko',
-  'User-Agent': 'NangmanYeojido/1.0 (contact: map_romance)',
+  'User-Agent': 'NangmanYeojido/1.0',
 }
 
 export interface GeoResult {
@@ -15,36 +15,54 @@ export interface GeoResult {
   address: string
 }
 
+interface NominatimAddress {
+  amenity?: string
+  historic?: string
+  building?: string
+  house_number?: string
+  road?: string
+  quarter?: string
+  suburb?: string
+  borough?: string
+  city?: string
+  county?: string
+  state?: string
+  postcode?: string
+  country?: string
+}
+
 /**
- * Nominatim display_name: "도로명, 동, 구, 시, 도, 대한민국" 순서
- * 역순으로 뒤집어 한국식 "도 시 구 도로명" 형태로 변환
+ * 구조화된 address 객체 → 한국식 "시 구 동 도로명 번지" 형태로 조립
+ * display_name 문자열 파싱 방식은 우편번호가 섞이는 버그가 있어 사용하지 않음
  */
-function toKoreanAddress(displayName: string): string {
-  return displayName
-    .split(', ')
-    .reverse()
-    .filter((p) => p !== '대한민국' && p !== 'South Korea')
-    .slice(0, 5)
-    .join(' ')
+function buildKoreanAddress(addr: NominatimAddress): string {
+  const parts = [
+    addr.city ?? addr.county ?? addr.state,
+    addr.borough,
+    addr.suburb ?? addr.quarter,
+    addr.road,
+    addr.house_number,
+  ].filter((p): p is string => Boolean(p))
+  return parts.join(' ')
 }
 
 /** 주소 텍스트 → 좌표 */
 export async function geocode(query: string): Promise<GeoResult | null> {
   try {
     const res = await fetch(
-      `${BASE}/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=kr`,
+      `${BASE}/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=kr&addressdetails=1`,
       { headers: HEADERS }
     )
     const data = (await res.json()) as Array<{
       lat: string
       lon: string
-      display_name: string
+      address: NominatimAddress
     }>
     if (!data.length) return null
     return {
       lat: parseFloat(data[0].lat),
       lng: parseFloat(data[0].lon),
-      address: toKoreanAddress(data[0].display_name),
+      address: buildKoreanAddress(data[0].address),
     }
   } catch {
     return null
@@ -55,12 +73,15 @@ export async function geocode(query: string): Promise<GeoResult | null> {
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
     const res = await fetch(
-      `${BASE}/reverse?lat=${lat}&lon=${lng}&format=json`,
+      `${BASE}/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
       { headers: HEADERS }
     )
-    const data = (await res.json()) as { display_name?: string; error?: string }
-    if (data.error || !data.display_name) return null
-    return toKoreanAddress(data.display_name)
+    const data = (await res.json()) as {
+      address?: NominatimAddress
+      error?: string
+    }
+    if (data.error || !data.address) return null
+    return buildKoreanAddress(data.address) || null
   } catch {
     return null
   }
