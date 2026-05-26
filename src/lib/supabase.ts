@@ -2,8 +2,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { Spot, Category } from '@/types'
 
 let _client: SupabaseClient | null = null
+let _adminClient: SupabaseClient | null = null
 
-// Lazy-init so build-time module evaluation doesn't throw on missing env vars.
 export function getSupabase(): SupabaseClient {
   if (!_client) {
     _client = createClient(
@@ -12,6 +12,17 @@ export function getSupabase(): SupabaseClient {
     )
   }
   return _client
+}
+
+// Service role client — bypasses RLS, server-side only
+export function getAdminSupabase(): SupabaseClient {
+  if (!_adminClient) {
+    _adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return _adminClient
 }
 
 // DB row (snake_case) → app Spot (camelCase)

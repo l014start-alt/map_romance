@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabase, rowToSpot } from '@/lib/supabase'
+import { getAdminSupabase, rowToSpot } from '@/lib/supabase'
 
 export async function PUT(
   req: NextRequest,
@@ -12,7 +12,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  const { data, error } = await getSupabase()
+  const { data, error } = await getAdminSupabase()
     .from('spots')
     .update({ approved: body.approved })
     .eq('id', id)
@@ -31,7 +31,7 @@ export async function DELETE(
 ) {
   const { id } = await params
 
-  const { error } = await getSupabase().from('spots').delete().eq('id', id)
+  const { error } = await getAdminSupabase().from('spots').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return new NextResponse(null, { status: 204 })
