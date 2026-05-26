@@ -242,17 +242,6 @@ export default function App() {
           />
         </div>
 
-        {/* 지도 일러스트 섹션 — 크롭+감성 컬러 */}
-        <div style={{ width: '100%' }}>
-          <Image
-            src="/map-illustration.png"
-            alt="한국 낭만 지도"
-            width={773}
-            height={820}
-            style={{ width: '100%', height: 'auto', display: 'block' }}
-          />
-        </div>
-
         {/* 지역 선택 섹션 */}
         <div style={{ flex: 1, padding: '0 20px 60px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '28px 0 24px' }}>
