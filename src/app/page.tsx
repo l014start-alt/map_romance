@@ -8,6 +8,7 @@ import LocationPicker, { type PinData } from '@/components/LocationPicker'
 import SpotSheet from '@/components/SpotSheet'
 import FeedView from '@/components/FeedView'
 import RegionSilhouette from '@/components/RegionSilhouette'
+import DaeguMap from '@/components/DaeguMap'
 import Footer from '@/components/Footer'
 import { reverseGeocode } from '@/lib/geocoding'
 import { Spot, Category, LocationGroup } from '@/types'
@@ -239,6 +240,21 @@ export default function App() {
             height={1100}
             priority
             style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        </div>
+
+        {/* 대구 행정구역 인터랙티브 지도 */}
+        <div style={{ width: '100%', padding: '24px 20px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
+            <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.16em', whiteSpace: 'nowrap' }}>대구 행정구역</span>
+            <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
+          </div>
+          <DaeguMap
+            onRegionClick={() => {
+              const daegu = REGIONS.find(r => r.id === 'daegu')
+              if (daegu) goMap(daegu)
+            }}
           />
         </div>
 
