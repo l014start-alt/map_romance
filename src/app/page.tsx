@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import Image from 'next/image'
 import RecordModal from '@/components/RecordModal'
 import LocationPicker, { type PinData } from '@/components/LocationPicker'
 import SpotSheet from '@/components/SpotSheet'
@@ -228,20 +229,33 @@ export default function App() {
   if (view === 'landing') {
     return (
       <div style={{ ...pageStyle, background: '#FAF8F5', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '72px 24px 52px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '36px' }}>
-            <span style={{ display: 'inline-block', width: '5px', height: '5px', borderRadius: '50%', background: '#800020' }} />
-            <span style={{ fontFamily: FONT_BRAND, fontSize: '11px', color: '#800020', letterSpacing: '0.08em' }}>낭만여지도</span>
-          </div>
-          <h1 style={{ fontFamily: FONT_BRAND, fontSize: 'clamp(56px, 16vw, 88px)', color: '#111', letterSpacing: '-0.02em', lineHeight: 1.08, textAlign: 'center', marginBottom: '20px' }}>
-            낭만여지도
-          </h1>
-          <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', letterSpacing: '0.05em', textAlign: 'center', wordBreak: 'keep-all', lineHeight: 1.8 }}>
-            우리들의 담백한 순간을 기록하는 지도
-          </p>
+
+        {/* 히어로 섹션 — 전체 일러스트 이미지 */}
+        <div style={{ width: '100%' }}>
+          <Image
+            src="/hero-map.png"
+            alt="낭만여지도"
+            width={773}
+            height={1100}
+            priority
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
         </div>
+
+        {/* 지도 일러스트 섹션 — 크롭+감성 컬러 */}
+        <div style={{ width: '100%' }}>
+          <Image
+            src="/map-illustration.png"
+            alt="한국 낭만 지도"
+            width={773}
+            height={820}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        </div>
+
+        {/* 지역 선택 섹션 */}
         <div style={{ flex: 1, padding: '0 20px 60px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '28px 0 24px' }}>
             <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
             <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.16em', whiteSpace: 'nowrap' }}>여행지를 골라주세요</span>
             <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
