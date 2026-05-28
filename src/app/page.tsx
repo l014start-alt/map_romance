@@ -444,7 +444,7 @@ function RegionCard({ region, onClick }: { region: Region; onClick: (r: Region) 
   return (
     <button onClick={() => onClick(region)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '22px 12px 18px', background: hovered ? '#FFF8F8' : '#FFFFFF', border: `1px solid ${hovered ? '#800020' : '#EDEAE5'}`, cursor: 'pointer', transform: hovered ? 'translateY(-3px)' : 'translateY(0)', boxShadow: hovered ? '0 8px 24px rgba(128,0,32,0.12)' : '0 1px 4px rgba(0,0,0,0.04)', transition: 'all 0.22s ease', gap: '10px' }}>
-      <RegionSilhouette regionId={region.id} size={76} />
+      <RegionSilhouette regionId={region.id} size={76} hovered={hovered} />
       <span style={{ fontFamily: FONT_BRAND, fontSize: '22px', color: hovered ? '#800020' : '#2A2520', lineHeight: 1.1, marginTop: '2px' }}>{region.name}</span>
       <span style={{ fontFamily: FONT_UI, fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.04em', textAlign: 'center', wordBreak: 'keep-all', lineHeight: 1.6 }}>{region.mood}</span>
     </button>
