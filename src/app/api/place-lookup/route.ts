@@ -1,13 +1,12 @@
 /**
- * GET /api/place-lookup?lat={lat}&lng={lng}
+ * GET /api/place-lookup?lat={lat}&lng={lng}&q={roadName}
  *
- * 좌표 → 역지오코딩(주소) + Kakao 장소 검색(상호명) 통합 조회
- * Returns: { address, shortName, placeName? }
+ * 카카오 키워드 검색으로 반경 50m 내 상호명 조회
+ * q를 전달하면 역지오코딩 스킵 (클라이언트가 이미 처리한 경우)
  */
 import { NextResponse } from 'next/server'
 import { reverseGeocode } from '@/lib/geocoding'
 
-/** "대구광역시 북구 중앙대로 484" → "중앙대로 484" */
 function parseShortName(fullAddress: string): string {
   const parts = fullAddress.trim().split(' ')
   if (parts.length < 2) return fullAddress
@@ -18,18 +17,14 @@ function parseShortName(fullAddress: string): string {
   return parts.slice(-2).join(' ')
 }
 
-/**
- * Kakao 키워드 검색 (좌표 + 반경 50m)
- * 가장 가까운 장소가 40m 이내면 상호명 반환
- */
 async function findNearbyPlaceKakao(lat: number, lng: number, query: string): Promise<string | undefined> {
   const key = process.env.KAKAO_REST_API_KEY
-  if (!key || !query || query === '주소 없음') return undefined
+  if (!key || !query) return undefined
 
   try {
     const url =
       `https://dapi.kakao.com/v2/local/search/keyword.json` +
-      `?query=${encodeURIComponent(query)}&x=${lng}&y=${lat}&radius=50&sort=distance&size=1`
+      `?query=${encodeURIComponent(query)}&x=${lng}&y=${lat}&radius=50&sort=distance&size=3`
 
     const res = await fetch(url, {
       headers: { Authorization: `KakaoAK ${key}` },
@@ -47,7 +42,8 @@ async function findNearbyPlaceKakao(lat: number, lng: number, query: string): Pr
 
     const nearest = data.documents[0]
     const dist = parseInt(nearest.distance ?? '999', 10)
-    if (dist <= 40) return nearest.place_name
+    // 50m 이내면 클릭한 장소로 간주
+    if (dist <= 50) return nearest.place_name
 
     return undefined
   } catch {
@@ -59,20 +55,27 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const lat = parseFloat(searchParams.get('lat') ?? '')
   const lng = parseFloat(searchParams.get('lng') ?? '')
+  const q = searchParams.get('q')  // 클라이언트에서 전달한 도로명 (선택)
 
   if (isNaN(lat) || isNaN(lng)) {
     return NextResponse.json({ error: 'lat/lng required' }, { status: 400 })
   }
 
-  const address = (await reverseGeocode(lat, lng)) ?? '주소 없음'
-  const shortName = parseShortName(address)
+  // q가 없으면 서버에서 역지오코딩
+  let address: string | undefined
+  let shortName: string
 
-  // 카카오 장소 검색: shortName을 query로 사용
+  if (q) {
+    shortName = q
+  } else {
+    address = (await reverseGeocode(lat, lng)) ?? '주소 없음'
+    shortName = parseShortName(address)
+  }
+
   const placeName = await findNearbyPlaceKakao(lat, lng, shortName)
 
   return NextResponse.json({
-    address,
-    shortName,
+    ...(address !== undefined && { address, shortName }),
     placeName: placeName ?? null,
   })
 }

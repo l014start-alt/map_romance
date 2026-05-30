@@ -112,20 +112,50 @@ export default function NaverMap({
   useEffect(() => { onAddressResolvedRef.current = onAddressResolved }, [onAddressResolved])
   useEffect(() => { isPickingRef.current = isPickingMode }, [isPickingMode])
 
-  /* ── 역지오코딩 + 장소명 조회 → onAddressResolved 호출 ──
-     /api/place-lookup 한 번으로 주소 + 상호명을 함께 받아옴           */
+  /* ── 역지오코딩 + 카카오 장소명 조회 → onAddressResolved 호출 ──
+     ① 클라이언트 SDK로 주소를 빠르게 받고
+     ② 서버(/api/place-lookup)에는 카카오 장소명 조회만 요청         */
   const resolveAddress = (lat: number, lng: number) => {
-    fetch(`/api/place-lookup?lat=${lat}&lng=${lng}`)
-      .then(r => r.json())
-      .then((data: { address?: string; shortName?: string; placeName?: string | null }) => {
-        const address   = data.address   || '주소 없음'
-        const shortName = data.shortName || parseShortName(address)
-        const placeName = data.placeName ?? undefined
-        onAddressResolvedRef.current?.(lat, lng, address, shortName, placeName)
-      })
-      .catch(() => {
-        onAddressResolvedRef.current?.(lat, lng, '주소 없음', '선택한 위치', undefined)
-      })
+    if (window.naver?.maps?.Service?.reverseGeocode) {
+      window.naver.maps.Service.reverseGeocode(
+        { coords: new naver.maps.LatLng(lat, lng), orders: 'roadaddr,addr' },
+        (status, response) => {
+          let address = '주소 없음'
+          if (status === window.naver.maps.Service.Status.OK) {
+            const road  = response.v2?.address?.roadAddress
+            const jibun = response.v2?.address?.jibunAddress
+            address = road || jibun || '주소 없음'
+          }
+          const shortName = parseShortName(address)
+          // ① 주소 즉시 업데이트
+          onAddressResolvedRef.current?.(lat, lng, address, shortName, undefined)
+          // ② 카카오 장소명 비동기 조회 (shortName을 query로 전달)
+          if (address !== '주소 없음') {
+            const roadOnly = shortName.split(' ')[0] // "중앙대로 484" → "중앙대로"
+            fetch(`/api/place-lookup?lat=${lat}&lng=${lng}&q=${encodeURIComponent(roadOnly)}`)
+              .then(r => r.json())
+              .then((data: { placeName?: string | null }) => {
+                if (data.placeName) {
+                  onAddressResolvedRef.current?.(lat, lng, address, shortName, data.placeName)
+                }
+              })
+              .catch(() => {})
+          }
+        }
+      )
+    } else {
+      // SDK 없으면 서버에서 모두 처리 (폴백)
+      fetch(`/api/place-lookup?lat=${lat}&lng=${lng}`)
+        .then(r => r.json())
+        .then((data: { address?: string; shortName?: string; placeName?: string | null }) => {
+          const address   = data.address   || '주소 없음'
+          const shortName = data.shortName || parseShortName(address)
+          onAddressResolvedRef.current?.(lat, lng, address, shortName, data.placeName ?? undefined)
+        })
+        .catch(() => {
+          onAddressResolvedRef.current?.(lat, lng, '주소 없음', '선택한 위치', undefined)
+        })
+    }
   }
 
   /* ── 기존 제보 마커 InfoWindow 열기 ── */
