@@ -74,6 +74,7 @@ export default function App() {
   const [phase, setPhase]         = useState<RecordPhase>('idle')
   const [pin, setPin]             = useState<PinData | null>(null)
   const [focusGroupKey, setFocusGroupKey] = useState<string | null>(null)
+  const [locating, setLocating]   = useState(false)
 
   const filteredSpots  = filter === 'all' ? spots : spots.filter(s => s.category === filter)
   const filteredGroups = groupSpots(filteredSpots)
@@ -172,6 +173,20 @@ export default function App() {
   const handleMapFlyTo = useCallback((lat: number, lng: number, zoom?: number) => {
     setMapFlyTarget({ center: [lat, lng], zoom: zoom ?? 17 })
   }, [])
+
+  /* ── 현재 위치로 이동 ── */
+  const goToCurrentLocation = () => {
+    if (!navigator.geolocation) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setMapFlyTarget({ center: [pos.coords.latitude, pos.coords.longitude], zoom: 16 })
+        setLocating(false)
+      },
+      () => { setLocating(false) },
+      { timeout: 8000, maximumAge: 30000 }
+    )
+  }
 
   const startPicking    = () => { setPin(null); setPhase('picking'); setActiveGroupKey(null) }
   const confirmPin      = useCallback((overridePin?: PinData) => {
@@ -397,6 +412,45 @@ export default function App() {
                 낭만 기록하기
               </button>
             </div>
+          )}
+
+          {/* 현재 위치 버튼 */}
+          {phase === 'idle' && (
+            <button
+              onClick={goToCurrentLocation}
+              disabled={locating}
+              style={{
+                position: 'absolute',
+                right: '16px',
+                bottom: 'calc(56px + 16px)',
+                zIndex: 1000,
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: '#FAF8F5',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: locating ? 'default' : 'pointer',
+                transition: 'opacity 0.2s',
+                opacity: locating ? 0.5 : 1,
+              }}
+            >
+              {locating ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#800020" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
+                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                  </path>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#800020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" strokeOpacity="0.2"/>
+                </svg>
+              )}
+            </button>
           )}
 
           {/* 스팟 카운트 */}
