@@ -1,15 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import L from 'leaflet'
 import { LocationGroup } from '@/types'
-
-delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
 
 const CATEGORY_COLOR: Record<string, string> = {
   낭만: '#800020',
@@ -17,35 +9,23 @@ const CATEGORY_COLOR: Record<string, string> = {
   사랑: '#C0392B',
 }
 
-function makePinIcon(category: string, count: number) {
+function makePinHTML(category: string, count: number) {
   const color = CATEGORY_COLOR[category] ?? '#800020'
   const badge = count > 1
-    ? `<div class="pin-badge" style="position:absolute;top:-10px;left:6px;min-width:18px;height:18px;border-radius:10px;background:${color};border:2px solid #FAF8F5;color:#FAF8F5;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 2px 6px rgba(0,0,0,0.22);line-height:1;">${count}</div>`
+    ? `<div style="position:absolute;top:-10px;left:6px;min-width:18px;height:18px;border-radius:10px;background:${color};border:2px solid #FAF8F5;color:#FAF8F5;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 2px 6px rgba(0,0,0,0.22);line-height:1;">${count}</div>`
     : ''
-  return L.divIcon({
-    html: `
-      <div style="position:relative;display:flex;flex-direction:column;align-items:center;">
-        ${badge}
-        <div style="width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 0 4px ${color}28;"></div>
-        <div style="width:1.5px;height:14px;background:${color};opacity:0.45;margin-top:1px;"></div>
-      </div>`,
-    className: '',
-    iconSize: [10, 26],
-    iconAnchor: [5, 26],
-  })
+  return `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
+    ${badge}
+    <div style="width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 0 4px ${color}28;"></div>
+    <div style="width:1.5px;height:14px;background:${color};opacity:0.45;margin-top:1px;"></div>
+  </div>`
 }
 
-function makeTempPinIcon() {
-  return L.divIcon({
-    html: `
-      <div style="position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">
-        <div class="temp-pin-ring" style="position:absolute;width:24px;height:24px;border-radius:50%;background:#800020;"></div>
-        <div style="position:relative;width:12px;height:12px;border-radius:50%;background:#800020;border:2px solid #FAF8F5;box-shadow:0 2px 8px rgba(128,0,32,0.5);"></div>
-      </div>`,
-    className: '',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-  })
+function makeTempPinHTML() {
+  return `<div style="position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">
+    <div style="position:absolute;width:24px;height:24px;border-radius:50%;background:#80002033;animation:ping 1s cubic-bezier(0,0,0.2,1) infinite;"></div>
+    <div style="position:relative;width:12px;height:12px;border-radius:50%;background:#800020;border:2px solid #FAF8F5;box-shadow:0 2px 8px rgba(128,0,32,0.5);"></div>
+  </div>`
 }
 
 interface MapProps {
@@ -59,81 +39,109 @@ interface MapProps {
 
 export default function NaverMap({ groups, center, zoom, onGroupClick, tempPin, onMapClick }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<L.Map | null>(null)
-  const markersRef = useRef<L.Marker[]>([])
-  const tempMarkerRef = useRef<L.Marker | null>(null)
+  const mapInstanceRef = useRef<naver.maps.Map | null>(null)
+  const markersRef = useRef<naver.maps.Marker[]>([])
+  const tempMarkerRef = useRef<naver.maps.Marker | null>(null)
+  const clickListenerRef = useRef<unknown>(null)
   const onMapClickRef = useRef(onMapClick)
+  const onGroupClickRef = useRef(onGroupClick)
 
   useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
+  useEffect(() => { onGroupClickRef.current = onGroupClick }, [onGroupClick])
 
+  // 지도 초기화
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return
+    if (!mapRef.current) return
 
-    const map = L.map(mapRef.current, {
-      center: center ?? [37.5665, 126.978],
-      zoom: zoom ?? 13,
-      zoomControl: false,
-      attributionControl: false,
-    })
+    const init = () => {
+      if (mapInstanceRef.current) return
+      const [lat, lng] = center ?? [35.8714, 128.6014] // 대구 중심
+      const map = new naver.maps.Map(mapRef.current!, {
+        center: new naver.maps.LatLng(lat, lng),
+        zoom: zoom ?? 13,
+        mapDataControl: false,
+        logoControl: false,
+        scaleControl: false,
+        zoomControl: false,
+      })
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
-    L.control.attribution({ prefix: false, position: 'bottomright' })
-      .addAttribution('© <a href="https://www.openstreetmap.org/copyright" style="color:#B5B0AB">OpenStreetMap</a>')
-      .addTo(map)
+      clickListenerRef.current = naver.maps.Event.addListener(map, 'click', (e: unknown) => {
+        const coord = (e as { coord: naver.maps.LatLng }).coord
+        onMapClickRef.current?.(coord.lat(), coord.lng())
+      })
 
-    map.on('click', (e: L.LeafletMouseEvent) => {
-      onMapClickRef.current?.(e.latlng.lat, e.latlng.lng)
-    })
+      mapInstanceRef.current = map
+    }
 
-    mapInstanceRef.current = map
-    return () => { map.remove(); mapInstanceRef.current = null }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (typeof window !== 'undefined' && window.naver?.maps) {
+      init()
+    } else {
+      const interval = setInterval(() => {
+        if (window.naver?.maps) { clearInterval(interval); init() }
+      }, 100)
+      return () => clearInterval(interval)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // 중심 이동
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map || !center) return
-    map.flyTo(center, zoom ?? 13, { duration: 1.2 })
+    map.setCenter(new naver.maps.LatLng(center[0], center[1]))
+    if (zoom) map.setZoom(zoom, true)
   }, [center, zoom])
 
   // 그룹 마커 동기화
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map) return
-    markersRef.current.forEach((m) => m.remove())
+    markersRef.current.forEach((m) => m.setMap(null))
     markersRef.current = []
 
     groups.forEach((group) => {
       if (group.lat == null || group.lng == null) return
       const primaryCategory = group.spots[0]?.category ?? '낭만'
-      const marker = L.marker([group.lat, group.lng], {
-        icon: makePinIcon(primaryCategory, group.spots.length),
+      const marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(group.lat, group.lng),
+        map,
+        icon: {
+          content: makePinHTML(primaryCategory, group.spots.length),
+          anchor: new naver.maps.Point(5, 26),
+        },
         title: group.placeName,
-      }).addTo(map)
-      if (onGroupClick) marker.on('click', () => onGroupClick(group))
+      })
+      naver.maps.Event.addListener(marker, 'click', () => onGroupClickRef.current?.(group))
       markersRef.current.push(marker)
     })
-  }, [groups, onGroupClick])
+  }, [groups])
 
+  // 임시 핀
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map) return
 
     if (tempMarkerRef.current) {
-      tempMarkerRef.current.remove()
+      tempMarkerRef.current.setMap(null)
       tempMarkerRef.current = null
     }
 
     if (tempPin) {
-      const marker = L.marker([tempPin.lat, tempPin.lng], {
-        icon: makeTempPinIcon(),
-        zIndexOffset: 1000,
-      }).addTo(map)
+      const marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(tempPin.lat, tempPin.lng),
+        map,
+        icon: {
+          content: makeTempPinHTML(),
+          anchor: new naver.maps.Point(12, 12),
+        },
+      })
       tempMarkerRef.current = marker
-      map.flyTo([tempPin.lat, tempPin.lng], Math.max(map.getZoom(), 15), { duration: 0.8 })
+      map.setCenter(new naver.maps.LatLng(tempPin.lat, tempPin.lng))
+      map.setZoom(Math.max(map.getZoom(), 15), true)
     }
   }, [tempPin])
 
+  // 커서 변경
   useEffect(() => {
     const container = mapRef.current
     if (!container) return

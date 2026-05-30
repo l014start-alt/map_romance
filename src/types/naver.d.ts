@@ -4,6 +4,7 @@ declare namespace naver {
       constructor(element: string | HTMLElement, options?: MapOptions)
       setCenter(latlng: LatLng): void
       getCenter(): LatLng
+      getZoom(): number
       setZoom(zoom: number, animate?: boolean): void
       destroy(): void
     }

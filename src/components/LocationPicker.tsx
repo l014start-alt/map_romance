@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { geocode } from '@/lib/geocoding'
 
 export interface PinData {
   lat: number
@@ -25,10 +24,11 @@ export default function LocationPicker({ pin, onPinUpdate, onConfirm, onCancel }
     if (!query.trim() || searching) return
     setSearching(true)
     setError(null)
-    const result = await geocode(query.trim())
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
+    const result = await res.json() as { lat?: number; lng?: number; address?: string; error?: string } | null
     setSearching(false)
-    if (result) {
-      onPinUpdate(result)
+    if (result && !result.error && result.lat != null && result.lng != null) {
+      onPinUpdate({ lat: result.lat, lng: result.lng, address: result.address ?? '' })
     } else {
       setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
     }

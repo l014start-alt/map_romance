@@ -10,7 +10,6 @@ import FeedView from '@/components/FeedView'
 import RegionSilhouette from '@/components/RegionSilhouette'
 import DaeguMap from '@/components/DaeguMap'
 import Footer from '@/components/Footer'
-import { reverseGeocode } from '@/lib/geocoding'
 import { Spot, Category, LocationGroup } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
 
@@ -139,7 +138,9 @@ export default function App() {
   /* ── 지도 클릭 → 역지오코딩 ── */
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     setPin({ lat, lng, address: '주소 확인 중…' })
-    const address = await reverseGeocode(lat, lng)
+    const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
+    const json = await res.json() as { address?: string }
+    const address = json.address ?? null
     setPin(prev => prev ? { ...prev, address: address ?? '' } : prev)
   }, [])
 
