@@ -37,8 +37,10 @@ export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps
   const [compressing, setCompressing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone]             = useState(false)
+  const [titleError, setTitleError]   = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const titleRef     = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setAddress(pin?.address ?? '') }, [pin])
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps
   const canSubmit =
     nickname.trim().length > 0 &&
     placeName.trim().length > 0 &&
+    title.trim().length > 0 &&
     category !== null &&
     moment.trim().length > 0 &&
     moment.length <= MOMENT_MAX &&
@@ -85,6 +88,12 @@ export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!title.trim()) {
+      setTitleError('제목을 입력해 주세요.')
+      titleRef.current?.focus()
+      return
+    }
+    setTitleError('')
     if (!canSubmit || !category) return
     setSubmitting(true)
     try {
@@ -220,9 +229,12 @@ export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps
 
           {/* 닉네임 */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>닉네임</label>
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>이름 또는 닉네임</label>
             <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="남기고 싶은 이름" maxLength={20}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '16px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#C8C4C0', marginTop: '8px', letterSpacing: '0.02em' }}>
+              이름 또는 닉네임으로 기록에 남겨드려요.
+            </p>
           </div>
 
           {/* 장소명 */}
@@ -260,17 +272,29 @@ export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps
           {/* 제목 */}
           <div>
             <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>
-              제목 <span style={{ color: '#DED9D3' }}>(선택)</span>
+              제목 <span style={{ color: '#800020' }}>*</span>
             </label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="이 순간을 한 문장으로" maxLength={60}
-              style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-brand)', fontSize: '18px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
+            <input
+              ref={titleRef}
+              type="text"
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError('') }}
+              placeholder="이 순간을 한 문장으로"
+              maxLength={60}
+              style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-brand)', fontSize: '18px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: `1px solid ${titleError ? '#800020' : '#EDE9E4'}` }}
+            />
+            {titleError && (
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#800020', marginTop: '6px', letterSpacing: '0.02em' }}>
+                {titleError}
+              </p>
+            )}
           </div>
 
           {/* 순간 기록 */}
           <div>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>그곳에서의 순간</p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>장소에 대한 사연</p>
             <textarea ref={textareaRef} value={moment} onChange={handleMomentChange}
-              placeholder="그곳에서 마주한 문장이나 장면을 자연스럽게 적어주세요." rows={4}
+              placeholder="이 장소에 대한 여러분의 사연을 적어주세요." rows={4}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#111', lineHeight: 2.0, borderBottom: '1px solid #EDE9E4', paddingBottom: '12px', outline: 'none', resize: 'none', minHeight: '96px', wordBreak: 'keep-all' }} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: moment.length >= MOMENT_MAX ? '#800020' : '#C8C4C0' }}>
