@@ -147,11 +147,17 @@ export default function App() {
     setActiveGroupKey(null)
   }, [])
 
-  /* ── 역지오코딩 완료 → pin 주소 업데이트 ── */
-  const handleAddressResolved = useCallback((lat: number, lng: number, address: string, shortName: string) => {
+  /* ── 역지오코딩 + 장소명 완료 → pin 업데이트 ── */
+  const handleAddressResolved = useCallback((lat: number, lng: number, address: string, shortName: string, placeName?: string) => {
     setPin(prev => {
       if (!prev || prev.lat !== lat || prev.lng !== lng) return prev
-      return { ...prev, address, shortName }
+      return {
+        ...prev,
+        address,
+        shortName,
+        // placeName이 있으면 상호명 우선, 없으면 기존 유지
+        placeName: placeName ?? prev.placeName,
+      }
     })
   }, [])
 

@@ -78,8 +78,8 @@ interface MapProps {
   tempPin?: { lat: number; lng: number } | null
   /** 지도 클릭 즉시 호출 (주소 확인 전 → pin 설정 + preview 전환용) */
   onMapClick?: (lat: number, lng: number) => void
-  /** 역지오코딩 완료 후 호출 */
-  onAddressResolved?: (lat: number, lng: number, address: string, shortName: string) => void
+  /** 역지오코딩 + 장소명 조회 완료 후 호출 */
+  onAddressResolved?: (lat: number, lng: number, address: string, shortName: string, placeName?: string) => void
   focusGroupKey?: string | null
   isPickingMode?: boolean
 }
@@ -112,32 +112,20 @@ export default function NaverMap({
   useEffect(() => { onAddressResolvedRef.current = onAddressResolved }, [onAddressResolved])
   useEffect(() => { isPickingRef.current = isPickingMode }, [isPickingMode])
 
-  /* ── 역지오코딩 → onAddressResolved 호출 ── */
+  /* ── 역지오코딩 + 장소명 조회 → onAddressResolved 호출 ──
+     /api/place-lookup 한 번으로 주소 + 상호명을 함께 받아옴           */
   const resolveAddress = (lat: number, lng: number) => {
-    if (window.naver?.maps?.Service?.reverseGeocode) {
-      window.naver.maps.Service.reverseGeocode(
-        { coords: new naver.maps.LatLng(lat, lng), orders: 'roadaddr,addr' },
-        (status, response) => {
-          let address = '주소 없음'
-          if (status === window.naver.maps.Service.Status.OK) {
-            const road  = response.v2?.address?.roadAddress
-            const jibun = response.v2?.address?.jibunAddress
-            address = road || jibun || '주소 없음'
-          }
-          onAddressResolvedRef.current?.(lat, lng, address, parseShortName(address))
-        }
-      )
-    } else {
-      fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
-        .then(r => r.json())
-        .then((data: { address?: string }) => {
-          const address = data.address || '주소 없음'
-          onAddressResolvedRef.current?.(lat, lng, address, parseShortName(address))
-        })
-        .catch(() => {
-          onAddressResolvedRef.current?.(lat, lng, '주소 없음', '선택한 위치')
-        })
-    }
+    fetch(`/api/place-lookup?lat=${lat}&lng=${lng}`)
+      .then(r => r.json())
+      .then((data: { address?: string; shortName?: string; placeName?: string | null }) => {
+        const address   = data.address   || '주소 없음'
+        const shortName = data.shortName || parseShortName(address)
+        const placeName = data.placeName ?? undefined
+        onAddressResolvedRef.current?.(lat, lng, address, shortName, placeName)
+      })
+      .catch(() => {
+        onAddressResolvedRef.current?.(lat, lng, '주소 없음', '선택한 위치', undefined)
+      })
   }
 
   /* ── 기존 제보 마커 InfoWindow 열기 ── */
