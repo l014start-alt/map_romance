@@ -174,7 +174,10 @@ export default function App() {
   }, [])
 
   const startPicking    = () => { setPin(null); setPhase('picking'); setActiveGroupKey(null) }
-  const confirmPin      = () => { if (pin) setPhase('preview') }
+  const confirmPin      = useCallback((overridePin?: PinData) => {
+    const p = overridePin ?? pin
+    if (p) { setPin(p); setPhase('preview') }
+  }, [pin])
   const confirmPreview  = () => setPhase('form')
   const reselectPin     = () => { setPhase('picking') }
   const closeRecord     = () => { setPhase('idle'); setPin(null) }

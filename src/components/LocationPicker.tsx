@@ -22,7 +22,7 @@ interface LocationPickerProps {
   pin: PinData | null
   onPinUpdate: (pin: PinData) => void
   onMapFlyTo: (lat: number, lng: number, zoom?: number) => void
-  onConfirm: () => void
+  onConfirm: (pin?: PinData) => void
   onCancel: () => void
 }
 
@@ -40,28 +40,45 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
     setResults([])
     setShowResults(false)
 
-    // 네이버 Maps SDK 클라이언트 지오코더 우선 사용 (서버 왕복 없음)
+    // 네이버 Maps SDK 클라이언트 지오코더 우선 사용 — 결과 없으면 서버(Nominatim) 폴백
     if (typeof window !== 'undefined' && window.naver?.maps?.Service?.geocode) {
       window.naver.maps.Service.geocode(
         { query: query.trim() },
-        (status, response) => {
-          setSearching(false)
-          if (status !== window.naver.maps.Service.Status.OK || !response.v2.addresses.length) {
-            setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
-            return
+        async (status, response) => {
+          const ok = status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0
+          if (ok) {
+            setSearching(false)
+            const list: SearchResult[] = response.v2.addresses.slice(0, 5).map((addr) => ({
+              lat: parseFloat(addr.y),
+              lng: parseFloat(addr.x),
+              address: addr.roadAddress || addr.jibunAddress,
+              roadAddress: addr.roadAddress,
+              jibunAddress: addr.jibunAddress,
+            }))
+            setResults(list)
+            setShowResults(true)
+            if (list.length === 1) selectResult(list[0])
+          } else {
+            // SDK 결과 없음 → 서버 API(Naver REST + Nominatim) 폴백
+            try {
+              const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
+              const data = await res.json() as { results?: SearchResult[]; error?: string }
+              setSearching(false)
+              if (data.results && data.results.length > 0) {
+                setResults(data.results)
+                if (data.results.length === 1) {
+                  selectResult(data.results[0])
+                } else {
+                  setShowResults(true)
+                }
+              } else {
+                setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
+              }
+            } catch {
+              setSearching(false)
+              setError('검색 중 오류가 발생했어요.')
+            }
           }
-          const list: SearchResult[] = response.v2.addresses.slice(0, 5).map((addr) => ({
-            lat: parseFloat(addr.y),
-            lng: parseFloat(addr.x),
-            address: addr.roadAddress || addr.jibunAddress,
-            roadAddress: addr.roadAddress,
-            jibunAddress: addr.jibunAddress,
-          }))
-          setResults(list)
-          setShowResults(true)
-
-          // 결과가 1개면 바로 선택
-          if (list.length === 1) selectResult(list[0])
         }
       )
     } else {
@@ -93,7 +110,7 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
     onMapFlyTo(result.lat, result.lng, 17)
     setShowResults(false)
     setQuery(result.placeName || result.address)
-    onConfirm()
+    onConfirm(pinData)
   }
 
   return (
@@ -193,11 +210,16 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
             >
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#111', lineHeight: 1.4 }}>
-                {result.roadAddress || result.jibunAddress}
+                {result.placeName || result.roadAddress || result.jibunAddress || result.address}
               </span>
-              {result.jibunAddress && result.roadAddress && result.jibunAddress !== result.roadAddress && (
+              {(result.roadAddress || result.jibunAddress) && (
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#C0BEBB', lineHeight: 1.3 }}>
-                  {result.jibunAddress}
+                  {result.roadAddress || result.jibunAddress}
+                </span>
+              )}
+              {!result.roadAddress && !result.jibunAddress && result.placeName && result.address && (
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#C0BEBB', lineHeight: 1.3 }}>
+                  {result.address.slice(0, 60)}
                 </span>
               )}
             </button>
@@ -229,7 +251,7 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={() => onConfirm()}
             disabled={!pin}
             style={{
               flex: 2, padding: '13px 0',
