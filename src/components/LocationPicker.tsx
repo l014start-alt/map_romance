@@ -7,6 +7,8 @@ export interface PinData {
   lng: number
   address: string
   placeName?: string
+  /** 역지오코딩에서 추출한 짧은 장소명 (예: "중앙대로 484") */
+  shortName?: string
 }
 
 interface SearchResult {

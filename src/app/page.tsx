@@ -140,10 +140,19 @@ export default function App() {
     setTab(newTab)
   }
 
-  /* ── 지도 클릭 → 역지오코딩 (picking 모드) ── */
-  const handleMapClick = useCallback(async (lat: number, lng: number) => {
-    setPin({ lat, lng, address: '주소 확인 중…' })
-    // NaverMap 내부에서 reverseGeocode 처리하므로 여기선 pin 좌표만 세팅
+  /* ── 지도 클릭 즉시 처리 → preview 단계로 전환 ── */
+  const handleMapClick = useCallback((lat: number, lng: number) => {
+    setPin({ lat, lng, address: '' })   // 빈 address = 로딩 중
+    setPhase('preview')
+    setActiveGroupKey(null)
+  }, [])
+
+  /* ── 역지오코딩 완료 → pin 주소 업데이트 ── */
+  const handleAddressResolved = useCallback((lat: number, lng: number, address: string, shortName: string) => {
+    setPin(prev => {
+      if (!prev || prev.lat !== lat || prev.lng !== lng) return prev
+      return { ...prev, address, shortName }
+    })
   }, [])
 
   /* ── 검색 결과 선택 → pin 업데이트 + 지도 이동 ── */
@@ -152,21 +161,6 @@ export default function App() {
     setMapFlyTarget({ center: [newPin.lat, newPin.lng], zoom: 17 })
   }, [])
 
-  /* ── 지도 임의 위치 클릭 "여기에 기록하기" → 미리보기 단계 ── */
-  const handleRecordAtLocation = useCallback((lat: number, lng: number, address: string) => {
-    const newPin: PinData = { lat, lng, address }
-    setPin(newPin)
-    setMapFlyTarget({ center: [lat, lng], zoom: 17 })
-    setPhase('preview')
-    setActiveGroupKey(null)
-  }, [])
-
-  /* ── picking 모드 InfoWindow / LocationPicker 확인 → 미리보기 단계 ── */
-  const handleRecordAtPicking = useCallback((lat: number, lng: number, address: string) => {
-    const newPin: PinData = { lat, lng, address }
-    setPin(newPin)
-    setPhase('preview')
-  }, [])
 
   /* ── 지도 이동 콜백 (LocationPicker 검색 결과 선택 시) ── */
   const handleMapFlyTo = useCallback((lat: number, lng: number, zoom?: number) => {
@@ -352,16 +346,10 @@ export default function App() {
           center={mapCenter}
           zoom={mapZoom}
           tempPin={pin}
-          onMapClick={tab === 'map' && phase === 'picking' ? handleMapClick : undefined}
+          onMapClick={tab === 'map' && phase !== 'form' ? handleMapClick : undefined}
+          onAddressResolved={handleAddressResolved}
           focusGroupKey={focusGroupKey}
           isPickingMode={tab === 'map' && phase === 'picking'}
-          onRecordAtLocation={
-            tab === 'map' && phase === 'picking'
-              ? handleRecordAtPicking
-              : tab === 'map' && phase === 'idle'
-              ? handleRecordAtLocation
-              : undefined
-          }
         />
       </div>
 
