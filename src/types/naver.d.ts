@@ -6,6 +6,7 @@ declare namespace naver {
       getCenter(): LatLng
       getZoom(): number
       setZoom(zoom: number, animate?: boolean): void
+      panTo(latlng: LatLng, options?: { duration?: number; easing?: string }): void
       destroy(): void
     }
     class LatLng {
@@ -20,8 +21,10 @@ declare namespace naver {
     }
     class InfoWindow {
       constructor(options: InfoWindowOptions)
-      open(map: Map, anchor: Marker): void
+      open(map: Map, anchor: Marker | LatLng): void
       close(): void
+      setContent(content: string): void
+      getMap(): Map | null
     }
     interface MapOptions {
       center?: LatLng
@@ -55,6 +58,7 @@ declare namespace naver {
       backgroundColor?: string
       borderColor?: string
       pixelOffset?: Point
+      maxWidth?: number
     }
     class Size {
       constructor(width: number, height: number)
@@ -68,12 +72,13 @@ declare namespace naver {
     namespace Service {
       function geocode(
         options: GeocodeOptions,
-        callback: (status: Status, response: GeocodeResponse) => void
+        callback: (status: string, response: GeocodeResponse) => void
       ): void
-      const Status: {
-        OK: string
-        ERROR: string
-      }
+      function reverseGeocode(
+        options: ReverseGeocodeOptions,
+        callback: (status: string, response: ReverseGeocodeResponse) => void
+      ): void
+      const Status: { OK: string; ERROR: string }
       interface GeocodeOptions {
         query: string
         coordinate?: string
@@ -89,6 +94,35 @@ declare namespace naver {
         jibunAddress: string
         x: string
         y: string
+        addressElements?: Array<{ types: string[]; longName: string; shortName: string; code: string }>
+      }
+      interface ReverseGeocodeOptions {
+        coords: LatLng
+        orders?: string
+      }
+      interface ReverseGeocodeResponse {
+        v2: {
+          results: ReverseGeocodeResult[]
+          address: { jibunAddress: string; roadAddress: string }
+        }
+      }
+      interface ReverseGeocodeResult {
+        name: string
+        code: { id: string; type: string; mappingId: string }
+        region: {
+          area0: { name: string }
+          area1: { name: string }
+          area2: { name: string }
+          area3: { name: string }
+          area4: { name: string }
+        }
+        land: {
+          type: string
+          number1: string
+          number2: string
+          name: string
+          addition0: { type: string; value: string }
+        }
       }
     }
   }
@@ -96,4 +130,5 @@ declare namespace naver {
 
 interface Window {
   naver: typeof naver
+  __naverMapCallback?: Record<string, (action: string, lat: number, lng: number, address: string) => void>
 }

@@ -136,13 +136,37 @@ export default function App() {
     setTab(newTab)
   }
 
-  /* ── 지도 클릭 → 역지오코딩 ── */
+  /* ── 지도 클릭 → 역지오코딩 (picking 모드) ── */
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     setPin({ lat, lng, address: '주소 확인 중…' })
-    const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
-    const json = await res.json() as { address?: string }
-    const address = json.address ?? null
-    setPin(prev => prev ? { ...prev, address: address ?? '' } : prev)
+    // NaverMap 내부에서 reverseGeocode 처리하므로 여기선 pin 좌표만 세팅
+  }, [])
+
+  /* ── 검색 결과 선택 → pin 업데이트 + 지도 이동 ── */
+  const handlePinUpdate = useCallback((newPin: PinData) => {
+    setPin(newPin)
+    setMapFlyTarget({ center: [newPin.lat, newPin.lng], zoom: 17 })
+  }, [])
+
+  /* ── 지도 임의 위치 클릭 "여기에 기록하기" (일반/POI 클릭) ── */
+  const handleRecordAtLocation = useCallback((lat: number, lng: number, address: string) => {
+    const newPin: PinData = { lat, lng, address }
+    setPin(newPin)
+    setMapFlyTarget({ center: [lat, lng], zoom: 17 })
+    setPhase('form')
+    setActiveGroupKey(null)
+  }, [])
+
+  /* ── picking 모드 InfoWindow "이 위치로 기록하기" → 폼으로 ── */
+  const handleRecordAtPicking = useCallback((lat: number, lng: number, address: string) => {
+    const newPin: PinData = { lat, lng, address }
+    setPin(newPin)
+    setPhase('form')
+  }, [])
+
+  /* ── 지도 이동 콜백 (LocationPicker 검색 결과 선택 시) ── */
+  const handleMapFlyTo = useCallback((lat: number, lng: number, zoom?: number) => {
+    setMapFlyTarget({ center: [lat, lng], zoom: zoom ?? 17 })
   }, [])
 
   const startPicking = () => { setPin(null); setPhase('picking'); setActiveGroupKey(null) }
@@ -321,6 +345,14 @@ export default function App() {
           tempPin={pin}
           onMapClick={tab === 'map' && phase === 'picking' ? handleMapClick : undefined}
           focusGroupKey={focusGroupKey}
+          isPickingMode={tab === 'map' && phase === 'picking'}
+          onRecordAtLocation={
+            tab === 'map' && phase === 'picking'
+              ? handleRecordAtPicking
+              : tab === 'map' && phase === 'idle'
+              ? handleRecordAtLocation
+              : undefined
+          }
         />
       </div>
 
@@ -384,7 +416,13 @@ export default function App() {
 
           {/* LocationPicker */}
           {phase === 'picking' && (
-            <LocationPicker pin={pin} onPinUpdate={setPin} onConfirm={confirmPin} onCancel={closeRecord} />
+            <LocationPicker
+              pin={pin}
+              onPinUpdate={handlePinUpdate}
+              onMapFlyTo={handleMapFlyTo}
+              onConfirm={confirmPin}
+              onCancel={closeRecord}
+            />
           )}
 
           {/* RecordModal */}

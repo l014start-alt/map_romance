@@ -6,32 +6,94 @@ export interface PinData {
   lat: number
   lng: number
   address: string
+  placeName?: string
+}
+
+interface SearchResult {
+  lat: number
+  lng: number
+  address: string
+  roadAddress: string
+  jibunAddress: string
 }
 
 interface LocationPickerProps {
   pin: PinData | null
   onPinUpdate: (pin: PinData) => void
+  onMapFlyTo: (lat: number, lng: number, zoom?: number) => void
   onConfirm: () => void
   onCancel: () => void
 }
 
-export default function LocationPicker({ pin, onPinUpdate, onConfirm, onCancel }: LocationPickerProps) {
-  const [query, setQuery] = useState('')
+export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm, onCancel }: LocationPickerProps) {
+  const [query, setQuery]       = useState('')
   const [searching, setSearching] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [results, setResults]   = useState<SearchResult[]>([])
+  const [error, setError]       = useState<string | null>(null)
+  const [showResults, setShowResults] = useState(false)
 
   const search = async () => {
     if (!query.trim() || searching) return
     setSearching(true)
     setError(null)
-    const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
-    const result = await res.json() as { lat?: number; lng?: number; address?: string; error?: string } | null
-    setSearching(false)
-    if (result && !result.error && result.lat != null && result.lng != null) {
-      onPinUpdate({ lat: result.lat, lng: result.lng, address: result.address ?? '' })
+    setResults([])
+    setShowResults(false)
+
+    // 네이버 Maps SDK 클라이언트 지오코더 우선 사용 (서버 왕복 없음)
+    if (typeof window !== 'undefined' && window.naver?.maps?.Service?.geocode) {
+      window.naver.maps.Service.geocode(
+        { query: query.trim() },
+        (status, response) => {
+          setSearching(false)
+          if (status !== window.naver.maps.Service.Status.OK || !response.v2.addresses.length) {
+            setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
+            return
+          }
+          const list: SearchResult[] = response.v2.addresses.slice(0, 5).map((addr) => ({
+            lat: parseFloat(addr.y),
+            lng: parseFloat(addr.x),
+            address: addr.roadAddress || addr.jibunAddress,
+            roadAddress: addr.roadAddress,
+            jibunAddress: addr.jibunAddress,
+          }))
+          setResults(list)
+          setShowResults(true)
+
+          // 결과가 1개면 바로 선택
+          if (list.length === 1) selectResult(list[0])
+        }
+      )
     } else {
-      setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
+      // 폴백: 서버 API 라우트
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
+        const data = await res.json() as { lat?: number; lng?: number; address?: string; error?: string }
+        setSearching(false)
+        if (data && !data.error && data.lat != null && data.lng != null) {
+          const result: SearchResult = {
+            lat: data.lat, lng: data.lng,
+            address: data.address ?? '',
+            roadAddress: data.address ?? '',
+            jibunAddress: '',
+          }
+          setResults([result])
+          selectResult(result)
+        } else {
+          setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
+        }
+      } catch {
+        setSearching(false)
+        setError('검색 중 오류가 발생했어요.')
+      }
     }
+  }
+
+  const selectResult = (result: SearchResult) => {
+    const pin: PinData = { lat: result.lat, lng: result.lng, address: result.address }
+    onPinUpdate(pin)
+    onMapFlyTo(result.lat, result.lng, 17)
+    setShowResults(false)
+    setQuery(result.address)
   }
 
   return (
@@ -58,17 +120,17 @@ export default function LocationPicker({ pin, onPinUpdate, onConfirm, onCancel }
         textAlign: 'center', marginBottom: '16px', letterSpacing: '0.02em',
         transition: 'color 0.2s',
       }}>
-        {pin ? `📍 ${pin.address || '위치 선택됨'}` : '지도를 클릭하거나 주소를 검색해주세요'}
+        {pin ? `📍 ${pin.address || '위치 선택됨'}` : '지도를 클릭하거나 장소·주소를 검색해주세요'}
       </p>
 
       {/* 검색바 */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: error ? '8px' : '20px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: error ? '8px' : showResults ? '0' : '20px' }}>
         <input
           type="text"
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setError(null) }}
+          onChange={(e) => { setQuery(e.target.value); setError(null); if (!e.target.value) { setResults([]); setShowResults(false) } }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void search() } }}
-          placeholder="주소 검색 (예: 대구 중구 동성로)"
+          placeholder="장소명·주소 검색 (예: 대구역, 동성로)"
           style={{
             flex: 1,
             background: '#F0EDE8',
@@ -101,6 +163,48 @@ export default function LocationPicker({ pin, onPinUpdate, onConfirm, onCancel }
         </button>
       </div>
 
+      {/* 검색 결과 리스트 */}
+      {showResults && results.length > 0 && (
+        <div style={{
+          marginBottom: '16px',
+          border: '1px solid #EDE9E4',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          background: '#FFFFFF',
+        }}>
+          {results.map((result, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => selectResult(result)}
+              style={{
+                width: '100%',
+                padding: '11px 14px',
+                textAlign: 'left',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                borderBottom: idx < results.length - 1 ? '1px solid #F0EDE8' : 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#FAF8F5' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+            >
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#111', lineHeight: 1.4 }}>
+                {result.roadAddress || result.jibunAddress}
+              </span>
+              {result.jibunAddress && result.roadAddress && result.jibunAddress !== result.roadAddress && (
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#C0BEBB', lineHeight: 1.3 }}>
+                  {result.jibunAddress}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {error && (
         <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#C0BEBB', marginBottom: '16px', lineHeight: 1.5 }}>
           {error}
@@ -108,37 +212,55 @@ export default function LocationPicker({ pin, onPinUpdate, onConfirm, onCancel }
       )}
 
       {/* 버튼 */}
-      <div style={{ display: 'flex', gap: '8px' }}>
+      {!showResults && (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              flex: 1, padding: '13px 0',
+              border: '1px solid #EDE9E4',
+              fontFamily: 'var(--font-sans)', fontSize: '12px',
+              color: '#B5B0AB', cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!pin}
+            style={{
+              flex: 2, padding: '13px 0',
+              background: pin ? '#111' : '#EDE9E4',
+              color: pin ? '#FAF8F5' : '#C0BEBB',
+              fontFamily: 'var(--font-sans)', fontSize: '12px',
+              cursor: pin ? 'pointer' : 'default',
+              letterSpacing: '0.04em',
+              transition: 'all 0.2s',
+            }}
+          >
+            이 위치로 기록하기
+          </button>
+        </div>
+      )}
+
+      {/* 결과 표시 중일 때 취소 버튼만 */}
+      {showResults && (
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => { setShowResults(false); setResults([]) }}
           style={{
-            flex: 1, padding: '13px 0',
+            width: '100%', marginTop: '12px', padding: '13px 0',
             border: '1px solid #EDE9E4',
             fontFamily: 'var(--font-sans)', fontSize: '12px',
             color: '#B5B0AB', cursor: 'pointer',
-            transition: 'all 0.15s',
           }}
         >
           취소
         </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={!pin}
-          style={{
-            flex: 2, padding: '13px 0',
-            background: pin ? '#111' : '#EDE9E4',
-            color: pin ? '#FAF8F5' : '#C0BEBB',
-            fontFamily: 'var(--font-sans)', fontSize: '12px',
-            cursor: pin ? 'pointer' : 'default',
-            letterSpacing: '0.04em',
-            transition: 'all 0.2s',
-          }}
-        >
-          이 위치로 기록하기
-        </button>
-      </div>
+      )}
     </div>
   )
 }
