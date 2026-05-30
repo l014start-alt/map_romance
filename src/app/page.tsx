@@ -70,8 +70,9 @@ export default function App() {
   const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null)
   const [mapFlyTarget, setMapFlyTarget]     = useState<{ center: [number, number]; zoom: number } | null>(null)
 
-  const [phase, setPhase]   = useState<RecordPhase>('idle')
-  const [pin, setPin]       = useState<PinData | null>(null)
+  const [phase, setPhase]         = useState<RecordPhase>('idle')
+  const [pin, setPin]             = useState<PinData | null>(null)
+  const [focusGroupKey, setFocusGroupKey] = useState<string | null>(null)
 
   const filteredSpots  = filter === 'all' ? spots : spots.filter(s => s.category === filter)
   const filteredGroups = groupSpots(filteredSpots)
@@ -220,8 +221,11 @@ export default function App() {
   /* ── 피드에서 지도로 이동 ── */
   const handleGoToPlace = useCallback((spot: Spot) => {
     if (spot.lat == null || spot.lng == null) return
+    const key = spot.placeName.trim().toLowerCase()
     setMapFlyTarget({ center: [spot.lat, spot.lng], zoom: 16 })
-    setActiveGroupKey(spot.placeName.trim().toLowerCase())
+    setActiveGroupKey(key)
+    setFocusGroupKey(null)           // 리셋 후 재설정으로 useEffect 재발동
+    setTimeout(() => setFocusGroupKey(key), 0)
     setTab('map')
   }, [])
 
@@ -316,6 +320,7 @@ export default function App() {
           zoom={mapZoom}
           tempPin={pin}
           onMapClick={tab === 'map' && phase === 'picking' ? handleMapClick : undefined}
+          focusGroupKey={focusGroupKey}
         />
       </div>
 
