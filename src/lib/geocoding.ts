@@ -9,9 +9,64 @@ export interface GeoResult {
   address: string
 }
 
+export interface GeoResultItem {
+  lat: number
+  lng: number
+  address: string
+  placeName?: string
+  roadAddress?: string
+  jibunAddress?: string
+}
+
 const NAVER_HEADERS = {
   'X-NCP-APIGW-API-KEY-ID': process.env.NEXT_PUBLIC_NAVER_CLIENT_ID ?? '',
   'X-NCP-APIGW-API-KEY': process.env.NAVER_CLIENT_SECRET ?? '',
+}
+
+/** 주소·상호명 → 최대 5개 결과 (Naver 우선, Nominatim 폴백) */
+export async function geocodeMultiple(query: string): Promise<GeoResultItem[]> {
+  const naverResults = await geocodeNaverMultiple(query)
+  if (naverResults.length > 0) return naverResults
+  return geocodeNominatim(query)
+}
+
+async function geocodeNaverMultiple(query: string): Promise<GeoResultItem[]> {
+  try {
+    const res = await fetch(
+      `https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(query)}&count=5`,
+      { headers: NAVER_HEADERS }
+    )
+    const data = await res.json() as { addresses?: Array<{ y: string; x: string; roadAddress: string; jibunAddress: string }> }
+    const addresses = data?.addresses ?? []
+    return addresses.slice(0, 5).map(addr => ({
+      lat: parseFloat(addr.y),
+      lng: parseFloat(addr.x),
+      address: addr.roadAddress || addr.jibunAddress || query,
+      roadAddress: addr.roadAddress,
+      jibunAddress: addr.jibunAddress,
+    }))
+  } catch {
+    return []
+  }
+}
+
+async function geocodeNominatim(query: string): Promise<GeoResultItem[]> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=kr&accept-language=ko`,
+      { headers: { 'User-Agent': 'map-romance/1.0 (l014start@gmail.com)' } }
+    )
+    const data = await res.json() as Array<{ lat: string; lon: string; display_name: string; name: string; type: string }>
+    if (!Array.isArray(data)) return []
+    return data.slice(0, 5).map(item => ({
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon),
+      address: item.display_name,
+      placeName: item.name && item.name !== item.display_name ? item.name : undefined,
+    }))
+  } catch {
+    return []
+  }
 }
 
 /** 주소 텍스트 → 좌표 (서버에서만 호출) */

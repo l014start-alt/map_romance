@@ -27,7 +27,7 @@ const MOMENT_MAX = 500
 
 export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps) {
   const [nickname, setNickname]     = useState('')
-  const [placeName, setPlaceName]   = useState('')
+  const [placeName, setPlaceName]   = useState(pin?.placeName ?? '')
   const [address, setAddress]       = useState(pin?.address ?? '')
   const [category, setCategory]     = useState<Category | null>(null)
   const [title, setTitle]           = useState('')

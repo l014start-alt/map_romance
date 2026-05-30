@@ -13,8 +13,9 @@ interface SearchResult {
   lat: number
   lng: number
   address: string
-  roadAddress: string
-  jibunAddress: string
+  roadAddress?: string
+  jibunAddress?: string
+  placeName?: string
 }
 
 interface LocationPickerProps {
@@ -64,20 +65,18 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
         }
       )
     } else {
-      // 폴백: 서버 API 라우트
+      // 폴백: 서버 API 라우트 (Naver + Nominatim)
       try {
         const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
-        const data = await res.json() as { lat?: number; lng?: number; address?: string; error?: string }
+        const data = await res.json() as { results?: SearchResult[]; error?: string }
         setSearching(false)
-        if (data && !data.error && data.lat != null && data.lng != null) {
-          const result: SearchResult = {
-            lat: data.lat, lng: data.lng,
-            address: data.address ?? '',
-            roadAddress: data.address ?? '',
-            jibunAddress: '',
+        if (data.results && data.results.length > 0) {
+          setResults(data.results)
+          if (data.results.length === 1) {
+            selectResult(data.results[0])
+          } else {
+            setShowResults(true)
           }
-          setResults([result])
-          selectResult(result)
         } else {
           setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
         }
@@ -89,11 +88,12 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
   }
 
   const selectResult = (result: SearchResult) => {
-    const pin: PinData = { lat: result.lat, lng: result.lng, address: result.address }
-    onPinUpdate(pin)
+    const pinData: PinData = { lat: result.lat, lng: result.lng, address: result.address, placeName: result.placeName }
+    onPinUpdate(pinData)
     onMapFlyTo(result.lat, result.lng, 17)
     setShowResults(false)
-    setQuery(result.address)
+    setQuery(result.placeName || result.address)
+    onConfirm()
   }
 
   return (

@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import RecordModal from '@/components/RecordModal'
 import LocationPicker, { type PinData } from '@/components/LocationPicker'
+import PlacePreviewCard from '@/components/PlacePreviewCard'
 import SpotSheet from '@/components/SpotSheet'
 import FeedView from '@/components/FeedView'
 import RegionSilhouette from '@/components/RegionSilhouette'
@@ -17,7 +18,7 @@ const LeafletMap = dynamic(() => import('@/components/NaverMap'), { ssr: false }
 
 type View = 'landing' | 'daegu-districts' | 'map'
 type Tab  = 'map' | 'feed'
-type RecordPhase = 'idle' | 'picking' | 'form'
+type RecordPhase = 'idle' | 'picking' | 'preview' | 'form'
 type Filter = 'all' | Category
 
 interface Region {
@@ -133,6 +134,9 @@ export default function App() {
     if (newTab === 'feed') {
       setPhase('idle'); setPin(null); setActiveGroupKey(null)
     }
+    if (newTab === 'map' && (phase === 'preview' || phase === 'form')) {
+      setPhase('idle'); setPin(null)
+    }
     setTab(newTab)
   }
 
@@ -148,20 +152,20 @@ export default function App() {
     setMapFlyTarget({ center: [newPin.lat, newPin.lng], zoom: 17 })
   }, [])
 
-  /* ── 지도 임의 위치 클릭 "여기에 기록하기" (일반/POI 클릭) ── */
+  /* ── 지도 임의 위치 클릭 "여기에 기록하기" → 미리보기 단계 ── */
   const handleRecordAtLocation = useCallback((lat: number, lng: number, address: string) => {
     const newPin: PinData = { lat, lng, address }
     setPin(newPin)
     setMapFlyTarget({ center: [lat, lng], zoom: 17 })
-    setPhase('form')
+    setPhase('preview')
     setActiveGroupKey(null)
   }, [])
 
-  /* ── picking 모드 InfoWindow "이 위치로 기록하기" → 폼으로 ── */
+  /* ── picking 모드 InfoWindow / LocationPicker 확인 → 미리보기 단계 ── */
   const handleRecordAtPicking = useCallback((lat: number, lng: number, address: string) => {
     const newPin: PinData = { lat, lng, address }
     setPin(newPin)
-    setPhase('form')
+    setPhase('preview')
   }, [])
 
   /* ── 지도 이동 콜백 (LocationPicker 검색 결과 선택 시) ── */
@@ -169,9 +173,11 @@ export default function App() {
     setMapFlyTarget({ center: [lat, lng], zoom: zoom ?? 17 })
   }, [])
 
-  const startPicking = () => { setPin(null); setPhase('picking'); setActiveGroupKey(null) }
-  const confirmPin   = () => { if (pin) setPhase('form') }
-  const closeRecord  = () => { setPhase('idle'); setPin(null) }
+  const startPicking    = () => { setPin(null); setPhase('picking'); setActiveGroupKey(null) }
+  const confirmPin      = () => { if (pin) setPhase('preview') }
+  const confirmPreview  = () => setPhase('form')
+  const reselectPin     = () => { setPhase('picking') }
+  const closeRecord     = () => { setPhase('idle'); setPin(null) }
 
   /* ── 폼 제출 ── */
   const handleSubmit = useCallback(async (data: {
@@ -425,6 +431,15 @@ export default function App() {
             />
           )}
 
+          {/* PlacePreviewCard */}
+          {phase === 'preview' && pin && (
+            <PlacePreviewCard
+              pin={pin}
+              onConfirm={confirmPreview}
+              onReselect={reselectPin}
+            />
+          )}
+
           {/* RecordModal */}
           {phase === 'form' && (
             <RecordModal pin={pin} onClose={closeRecord} onSubmit={handleSubmit} />
@@ -456,7 +471,7 @@ export default function App() {
         </>
       )}
 
-      {/* 하단 탭 바 — picking/form 중에는 숨김 */}
+      {/* 하단 탭 바 — picking/preview/form 중에는 숨김 */}
       {phase === 'idle' && (
         <nav style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '56px', background: '#FAF8F5', borderTop: '1px solid #EDE9E4', display: 'flex', zIndex: 1500 }}>
           <button type="button" onClick={() => switchTab('map')}
