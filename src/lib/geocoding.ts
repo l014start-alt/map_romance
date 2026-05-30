@@ -23,11 +23,45 @@ const NAVER_HEADERS = {
   'X-NCP-APIGW-API-KEY': process.env.NAVER_CLIENT_SECRET ?? '',
 }
 
-/** 주소·상호명 → 최대 5개 결과 (Naver 우선, Nominatim 폴백) */
+/** 주소·상호명 → 최대 5개 결과 (Kakao 우선 → Naver → Nominatim 폴백) */
 export async function geocodeMultiple(query: string): Promise<GeoResultItem[]> {
+  const kakaoResults = await geocodeKakao(query)
+  if (kakaoResults.length > 0) return kakaoResults
   const naverResults = await geocodeNaverMultiple(query)
   if (naverResults.length > 0) return naverResults
   return geocodeNominatim(query)
+}
+
+/** Kakao 키워드 검색 → 상호명·주소 통합 결과 */
+export async function geocodeKakao(query: string): Promise<GeoResultItem[]> {
+  const key = process.env.KAKAO_REST_API_KEY
+  if (!key) return []
+  try {
+    const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=5`
+    const res = await fetch(url, {
+      headers: { Authorization: `KakaoAK ${key}` },
+    })
+    if (!res.ok) return []
+    const data = await res.json() as {
+      documents: Array<{
+        place_name: string
+        road_address_name: string
+        address_name: string
+        x: string   // 경도
+        y: string   // 위도
+      }>
+    }
+    return (data.documents ?? []).map(d => ({
+      lat: parseFloat(d.y),
+      lng: parseFloat(d.x),
+      address: d.road_address_name || d.address_name,
+      placeName: d.place_name,
+      roadAddress: d.road_address_name,
+      jibunAddress: d.address_name,
+    }))
+  } catch {
+    return []
+  }
 }
 
 async function geocodeNaverMultiple(query: string): Promise<GeoResultItem[]> {
