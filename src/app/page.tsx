@@ -39,6 +39,20 @@ const REGIONS: Region[] = [
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_UI    = 'var(--font-sans)'
+const DESKTOP_BP = 1024
+
+/* ── 데스크탑(≥1024px) 여부 감지 ── */
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${DESKTOP_BP}px)`)
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  return isDesktop
+}
 const FILTER_LABELS: Filter[] = ['all', '낭만', '젊음', '사랑']
 const FILTER_KR: Record<Filter, string> = { all: '전체', 낭만: '낭만', 젊음: '젊음', 사랑: '사랑' }
 const LS_KEY = 'map_romance_local_spots'
@@ -75,6 +89,8 @@ export default function App() {
   const [pin, setPin]             = useState<PinData | null>(null)
   const [focusGroupKey, setFocusGroupKey] = useState<string | null>(null)
   const [locating, setLocating]   = useState(false)
+
+  const isDesktop = useIsDesktop()
 
   const filteredSpots  = filter === 'all' ? spots : spots.filter(s => s.category === filter)
   const filteredGroups = groupSpots(filteredSpots)
@@ -283,6 +299,41 @@ export default function App() {
     width: '100%', height: '100%',
   }
 
+  /* ════════ LANDING VIEW — 데스크탑 (좌우 분할) ════════ */
+  if (view === 'landing' && isDesktop) {
+    return (
+      <div style={{ ...pageStyle, background: '#FAF8F5', display: 'flex', overflow: 'hidden' }}>
+
+        {/* 좌측 — 히어로 일러스트 */}
+        <div style={{ width: '46%', minWidth: '420px', maxWidth: '760px', height: '100%', background: '#FAF8F5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px', borderRight: '1px solid #EDE9E4' }}>
+          <Image
+            src="/hero-map.png"
+            alt="낭만여지도"
+            width={773}
+            height={1100}
+            priority
+            style={{ width: 'auto', height: '100%', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+          />
+        </div>
+
+        {/* 우측 — 지역 선택 + 푸터 */}
+        <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, padding: '64px 56px 40px', maxWidth: '900px', width: '100%', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '40px' }}>
+              <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
+              <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#C0BEBB', letterSpacing: '0.18em', whiteSpace: 'nowrap' }}>여행지를 골라주세요</span>
+              <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '18px' }}>
+              {REGIONS.map(region => <RegionCard key={region.id} region={region} onClick={goMap} desktop />)}
+            </div>
+          </div>
+          <Footer />
+        </div>
+      </div>
+    )
+  }
+
   /* ════════ LANDING VIEW ════════ */
   if (view === 'landing') {
     return (
@@ -338,7 +389,7 @@ export default function App() {
         </div>
 
         {/* 대구 인터랙티브 지도 */}
-        <div style={{ flex: 1, padding: '0 12px 40px' }}>
+        <div style={{ flex: 1, padding: '0 12px 40px', width: '100%', maxWidth: isDesktop ? '560px' : undefined, margin: '0 auto' }}>
           <DaeguMap
             onRegionClick={() => {
               transition(() => {
@@ -355,6 +406,136 @@ export default function App() {
   /* ════════ MAP VIEW ════════ */
   const mapCenter = mapFlyTarget?.center ?? (selectedRegion ? [selectedRegion.lat, selectedRegion.lng] as [number, number] : undefined)
   const mapZoom   = mapFlyTarget?.zoom   ?? selectedRegion?.zoom
+
+  /* ════════ MAP VIEW — 데스크탑 (좌우 분할) ════════ */
+  if (isDesktop) {
+    return (
+      <main style={{ ...pageStyle, display: 'flex' }}>
+
+        {/* ── 좌측 사이드바 ── */}
+        <aside style={{ width: '400px', flexShrink: 0, height: '100%', background: '#FAF8F5', borderRight: '1px solid #EDE9E4', display: 'flex', flexDirection: 'column' }}>
+          {/* 헤더 */}
+          <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #EDE9E4', flexShrink: 0 }}>
+            <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#6B6560', cursor: 'pointer', marginBottom: '14px' }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="13,4 7,10 13,16" />
+              </svg>
+              지역 선택
+            </button>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+              <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#800020', lineHeight: 1 }}>낭만여지도</p>
+              {selectedRegion && (
+                <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', letterSpacing: '0.04em' }}>
+                  {selectedRegion.emoji} {selectedRegion.name}
+                </span>
+              )}
+            </div>
+            <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0BEBB', letterSpacing: '0.04em', marginTop: '8px', wordBreak: 'keep-all' }}>
+              지도를 눌러 낭만을 기록하거나, 아래 사연을 눌러 그 장소로 이동하세요.
+            </p>
+          </div>
+
+          {/* 사연 리스트 */}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <FeedView spots={spots} onGoToPlace={handleGoToPlace} />
+          </div>
+
+          {/* 기록 버튼 */}
+          <div style={{ padding: '16px 20px', borderTop: '1px solid #EDE9E4', flexShrink: 0 }}>
+            <button onClick={startPicking} style={{ width: '100%', fontFamily: FONT_BRAND, fontSize: '18px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 16px rgba(128,0,32,0.22)', cursor: 'pointer', transition: 'opacity 0.2s' }}>
+              <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" />
+              </svg>
+              낭만 기록하기
+            </button>
+          </div>
+        </aside>
+
+        {/* ── 우측 지도 영역 ── */}
+        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <LeafletMap
+              groups={filteredGroups}
+              onGroupClick={phase === 'idle' ? (g) => setActiveGroupKey(g.key) : undefined}
+              center={mapCenter}
+              zoom={mapZoom}
+              tempPin={pin}
+              onMapClick={phase !== 'form' ? handleMapClick : undefined}
+              onAddressResolved={handleAddressResolved}
+              focusGroupKey={focusGroupKey}
+              isPickingMode={phase === 'picking'}
+            />
+          </div>
+
+          {/* 현재 위치 버튼 */}
+          {phase === 'idle' && (
+            <button
+              onClick={goToCurrentLocation}
+              disabled={locating}
+              style={{ position: 'absolute', right: '20px', bottom: '20px', zIndex: 1000, width: '44px', height: '44px', borderRadius: '50%', background: '#FAF8F5', boxShadow: '0 2px 12px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: locating ? 'default' : 'pointer', transition: 'opacity 0.2s', opacity: locating ? 0.5 : 1 }}
+            >
+              {locating ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#800020" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
+                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                  </path>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#800020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" strokeOpacity="0.2"/>
+                </svg>
+              )}
+            </button>
+          )}
+
+          {/* 스팟 카운트 */}
+          {phase === 'idle' && !activeGroup && filteredGroups.length > 0 && (
+            <p style={{ position: 'absolute', left: '20px', top: '20px', zIndex: 1000, fontFamily: FONT_UI, fontSize: '11px', color: '#8A8480', letterSpacing: '0.08em', background: 'rgba(250,248,245,0.9)', padding: '6px 12px', borderRadius: '99px', boxShadow: '0 1px 6px rgba(0,0,0,0.08)' }}>
+              {filteredGroups.length}개의 장소
+            </p>
+          )}
+
+          {/* SpotSheet */}
+          {phase === 'idle' && activeGroup && (
+            <SpotSheet
+              group={activeGroup}
+              onClose={() => setActiveGroupKey(null)}
+              onDelete={handleDeleteStory}
+              onUpdate={handleUpdateStory}
+              verifyPassword={verifyPassword}
+            />
+          )}
+
+          {/* LocationPicker */}
+          {phase === 'picking' && (
+            <LocationPicker
+              pin={pin}
+              onPinUpdate={handlePinUpdate}
+              onMapFlyTo={handleMapFlyTo}
+              onConfirm={confirmPin}
+              onCancel={closeRecord}
+            />
+          )}
+
+          {/* PlacePreviewCard */}
+          {phase === 'preview' && pin && (
+            <PlacePreviewCard
+              pin={pin}
+              onConfirm={confirmPreview}
+              onReselect={reselectPin}
+            />
+          )}
+
+          {/* RecordModal */}
+          {phase === 'form' && (
+            <RecordModal pin={pin} onClose={closeRecord} onSubmit={handleSubmit} />
+          )}
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main style={{ ...pageStyle, position: 'relative' }}>
@@ -549,14 +730,14 @@ export default function App() {
 }
 
 /* ── 지역 카드 ── */
-function RegionCard({ region, onClick }: { region: Region; onClick: (r: Region) => void }) {
+function RegionCard({ region, onClick, desktop = false }: { region: Region; onClick: (r: Region) => void; desktop?: boolean }) {
   const [hovered, setHovered] = useState(false)
   return (
     <button onClick={() => onClick(region)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '22px 12px 18px', background: hovered ? '#FFF8F8' : '#FFFFFF', border: `1px solid ${hovered ? '#800020' : '#EDEAE5'}`, cursor: 'pointer', transform: hovered ? 'translateY(-3px)' : 'translateY(0)', boxShadow: hovered ? '0 8px 24px rgba(128,0,32,0.12)' : '0 1px 4px rgba(0,0,0,0.04)', transition: 'all 0.22s ease', gap: '10px' }}>
-      <RegionSilhouette regionId={region.id} size={76} hovered={hovered} />
-      <span style={{ fontFamily: FONT_BRAND, fontSize: '22px', color: hovered ? '#800020' : '#2A2520', lineHeight: 1.1, marginTop: '2px' }}>{region.name}</span>
-      <span style={{ fontFamily: FONT_UI, fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.04em', textAlign: 'center', wordBreak: 'keep-all', lineHeight: 1.6 }}>{region.mood}</span>
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: desktop ? '34px 16px 28px' : '22px 12px 18px', background: hovered ? '#FFF8F8' : '#FFFFFF', border: `1px solid ${hovered ? '#800020' : '#EDEAE5'}`, cursor: 'pointer', transform: hovered ? 'translateY(-3px)' : 'translateY(0)', boxShadow: hovered ? '0 8px 24px rgba(128,0,32,0.12)' : '0 1px 4px rgba(0,0,0,0.04)', transition: 'all 0.22s ease', gap: desktop ? '14px' : '10px' }}>
+      <RegionSilhouette regionId={region.id} size={desktop ? 104 : 76} hovered={hovered} />
+      <span style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '30px' : '22px', color: hovered ? '#800020' : '#2A2520', lineHeight: 1.1, marginTop: '2px' }}>{region.name}</span>
+      <span style={{ fontFamily: FONT_UI, fontSize: desktop ? '11px' : '9px', color: '#C0BEBB', letterSpacing: '0.04em', textAlign: 'center', wordBreak: 'keep-all', lineHeight: 1.6 }}>{region.mood}</span>
     </button>
   )
 }

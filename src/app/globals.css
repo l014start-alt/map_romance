@@ -24,6 +24,19 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* 앱 컨테이너 — 모바일은 440px 컬럼, 데스크탑은 전체폭 */
+.app-shell {
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  background: #FAF8F5;
+  position: relative;
+  overflow: hidden;
+}
+@media (min-width: 1024px) {
+  .app-shell { max-width: none; flex: 1 0 100%; }
+}
+
 body {
   background: var(--bg);
   color: var(--ink);

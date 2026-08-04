@@ -40,16 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className="h-full overflow-hidden"
         style={{ background: '#D6D0C8', display: 'flex', justifyContent: 'center' }}
       >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: '440px',
-            height: '100%',
-            background: '#FAF8F5',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
+        <div className="app-shell">
           {children}
         </div>
       </body>
