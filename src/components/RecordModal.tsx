@@ -7,6 +7,7 @@ import type { PinData } from './LocationPicker'
 
 interface RecordModalProps {
   pin: PinData | null
+  desktop?: boolean
   onClose: () => void
   onSubmit: (data: {
     placeName: string
@@ -25,7 +26,7 @@ interface RecordModalProps {
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
 const MOMENT_MAX = 500
 
-export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps) {
+export default function RecordModal({ pin, desktop = false, onClose, onSubmit }: RecordModalProps) {
   const [nickname, setNickname]     = useState('')
   const [placeName, setPlaceName]   = useState(pin?.placeName ?? '')
   const [address, setAddress]       = useState(pin?.address ?? '')
@@ -115,9 +116,9 @@ export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps
 
   /* ── 완료 화면 ── */
   if (done) return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'flex-end', background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(4px)' }}
+    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: desktop ? 'center' : 'flex-end', justifyContent: 'center', padding: desktop ? '40px' : 0, background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: '100%', background: '#FAF8F5', borderRadius: '14px 14px 0 0', minHeight: '40dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
+      <div style={{ width: desktop ? '480px' : '100%', maxWidth: '100%', background: '#FAF8F5', borderRadius: desktop ? '14px' : '14px 14px 0 0', minHeight: desktop ? 'auto' : '40dvh', boxShadow: desktop ? '0 16px 56px rgba(0,0,0,0.22)' : 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
         <p style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#2A2520', lineHeight: 2.0, textAlign: 'center', wordBreak: 'keep-all' }}>기록이 접수되었습니다.</p>
         <p style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#B5B0AB', lineHeight: 1.9, marginTop: '12px', textAlign: 'center', wordBreak: 'keep-all' }}>
           지도 위에 핀이 꽂혔어요.<br />낭만을 남겨주셔서 감사해요.
@@ -129,9 +130,9 @@ export default function RecordModal({ pin, onClose, onSubmit }: RecordModalProps
 
   /* ── 메인 폼 ── */
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'flex-end', background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(4px)' }}
+    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: desktop ? 'center' : 'flex-end', justifyContent: 'center', padding: desktop ? '40px' : 0, background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ width: '100%', maxHeight: '90dvh', overflowY: 'auto', background: '#FAF8F5', borderRadius: '14px 14px 0 0', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+      <div style={{ width: desktop ? '480px' : '100%', maxWidth: '100%', maxHeight: desktop ? '86dvh' : '90dvh', overflowY: 'auto', background: '#FAF8F5', borderRadius: desktop ? '14px' : '14px 14px 0 0', boxShadow: desktop ? '0 16px 56px rgba(0,0,0,0.22)' : 'none', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
 
         {/* 핸들 */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import RecordModal from '@/components/RecordModal'
@@ -8,7 +8,6 @@ import LocationPicker, { type PinData } from '@/components/LocationPicker'
 import PlacePreviewCard from '@/components/PlacePreviewCard'
 import SpotSheet from '@/components/SpotSheet'
 import FeedView from '@/components/FeedView'
-import RegionSilhouette from '@/components/RegionSilhouette'
 import DaeguMap from '@/components/DaeguMap'
 import Footer from '@/components/Footer'
 import { Spot, Category, LocationGroup } from '@/types'
@@ -385,133 +384,77 @@ export default function App() {
   const mapCenter = mapFlyTarget?.center ?? (selectedRegion ? [selectedRegion.lat, selectedRegion.lng] as [number, number] : undefined)
   const mapZoom   = mapFlyTarget?.zoom   ?? selectedRegion?.zoom
 
-  /* ════════ MAP VIEW — 데스크탑 (좌우 분할) ════════ */
+  /* ════════ MAP VIEW — 데스크탑 (사연 갤러리, 지도 없음) ════════ */
   if (isDesktop) {
+    const gallerySpots = [...filteredSpots].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     return (
-      <main style={{ ...pageStyle, display: 'flex' }}>
+      <div style={{ ...pageStyle, position: 'relative', background: '#FAF8F5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-        {/* ── 좌측 사이드바 ── */}
-        <aside style={{ width: '400px', flexShrink: 0, height: '100%', background: '#FAF8F5', borderRight: '1px solid #EDE9E4', display: 'flex', flexDirection: 'column' }}>
-          {/* 헤더 */}
-          <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #EDE9E4', flexShrink: 0 }}>
-            <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#6B6560', cursor: 'pointer', marginBottom: '14px' }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="13,4 7,10 13,16" />
-              </svg>
+        {/* 헤더 바 */}
+        <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', padding: '18px 40px', borderBottom: '1px solid #EDE9E4', background: '#FAF8F5', zIndex: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', minWidth: 0 }}>
+            <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#6B6560', cursor: 'pointer', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
               지역 선택
             </button>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-              <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#800020', lineHeight: 1 }}>낭만여지도</p>
-              {selectedRegion && (
-                <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', letterSpacing: '0.04em' }}>
-                  {selectedRegion.emoji} {selectedRegion.name}
-                </span>
-              )}
+              <span style={{ fontFamily: FONT_BRAND, fontSize: '28px', color: '#800020', lineHeight: 1 }}>낭만여지도</span>
+              <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', letterSpacing: '0.04em' }}>· 대구</span>
             </div>
-            <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0BEBB', letterSpacing: '0.04em', marginTop: '8px', wordBreak: 'keep-all' }}>
-              지도를 눌러 낭만을 기록하거나, 아래 사연을 눌러 그 장소로 이동하세요.
-            </p>
           </div>
-
-          {/* 사연 리스트 */}
-          <div style={{ flex: 1, minHeight: 0 }}>
-            <FeedView spots={spots} onGoToPlace={handleGoToPlace} />
-          </div>
-
-          {/* 기록 버튼 */}
-          <div style={{ padding: '16px 20px', borderTop: '1px solid #EDE9E4', flexShrink: 0 }}>
-            <button onClick={startPicking} style={{ width: '100%', fontFamily: FONT_BRAND, fontSize: '18px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 16px rgba(128,0,32,0.22)', cursor: 'pointer', transition: 'opacity 0.2s' }}>
-              <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" />
-              </svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: '2px' }}>
+              {FILTER_LABELS.map(f => (
+                <button key={f} onClick={() => setFilter(f)} style={{ fontFamily: FONT_UI, fontSize: '13px', cursor: 'pointer', padding: '7px 16px', borderRadius: '99px', background: filter === f ? '#800020' : 'transparent', color: filter === f ? '#FAF8F5' : '#8A8480', fontWeight: filter === f ? 500 : 400, transition: 'all 0.18s' }}>
+                  {FILTER_KR[f]}
+                </button>
+              ))}
+            </div>
+            <button onClick={startPicking} style={{ fontFamily: FONT_BRAND, fontSize: '18px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: '11px 24px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(128,0,32,0.24)', cursor: 'pointer', flexShrink: 0 }}>
+              <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
               낭만 기록하기
             </button>
           </div>
-        </aside>
+        </header>
 
-        {/* ── 우측 지도 영역 ── */}
-        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-          <div style={{ position: 'absolute', inset: 0 }}>
-            <LeafletMap
-              groups={filteredGroups}
-              onGroupClick={phase === 'idle' ? (g) => setActiveGroupKey(g.key) : undefined}
-              center={mapCenter}
-              zoom={mapZoom}
-              tempPin={pin}
-              onMapClick={phase !== 'form' ? handleMapClick : undefined}
-              onAddressResolved={handleAddressResolved}
-              focusGroupKey={focusGroupKey}
-              isPickingMode={phase === 'picking'}
-            />
-          </div>
-
-          {/* 현재 위치 버튼 */}
-          {phase === 'idle' && (
-            <button
-              onClick={goToCurrentLocation}
-              disabled={locating}
-              style={{ position: 'absolute', right: '20px', bottom: '20px', zIndex: 1000, width: '44px', height: '44px', borderRadius: '50%', background: '#FAF8F5', boxShadow: '0 2px 12px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: locating ? 'default' : 'pointer', transition: 'opacity 0.2s', opacity: locating ? 0.5 : 1 }}
-            >
-              {locating ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#800020" strokeWidth="2" strokeLinecap="round">
-                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
-                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-                  </path>
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#800020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" strokeOpacity="0.2"/>
-                </svg>
-              )}
-            </button>
-          )}
-
-          {/* 스팟 카운트 */}
-          {phase === 'idle' && !activeGroup && filteredGroups.length > 0 && (
-            <p style={{ position: 'absolute', left: '20px', top: '20px', zIndex: 1000, fontFamily: FONT_UI, fontSize: '11px', color: '#8A8480', letterSpacing: '0.08em', background: 'rgba(250,248,245,0.9)', padding: '6px 12px', borderRadius: '99px', boxShadow: '0 1px 6px rgba(0,0,0,0.08)' }}>
-              {filteredGroups.length}개의 장소
-            </p>
-          )}
-
-          {/* SpotSheet */}
-          {phase === 'idle' && activeGroup && (
-            <SpotSheet
-              group={activeGroup}
-              onClose={() => setActiveGroupKey(null)}
-              onDelete={handleDeleteStory}
-              onUpdate={handleUpdateStory}
-              verifyPassword={verifyPassword}
-            />
-          )}
-
-          {/* LocationPicker */}
-          {phase === 'picking' && (
-            <LocationPicker
-              pin={pin}
-              onPinUpdate={handlePinUpdate}
-              onMapFlyTo={handleMapFlyTo}
-              onConfirm={confirmPin}
-              onCancel={closeRecord}
-            />
-          )}
-
-          {/* PlacePreviewCard */}
-          {phase === 'preview' && pin && (
-            <PlacePreviewCard
-              pin={pin}
-              onConfirm={confirmPreview}
-              onReselect={reselectPin}
-            />
-          )}
-
-          {/* RecordModal */}
-          {phase === 'form' && (
-            <RecordModal pin={pin} onClose={closeRecord} onSubmit={handleSubmit} />
+        {/* 갤러리 */}
+        <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
+          {gallerySpots.length === 0 ? (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+              <p style={{ fontFamily: FONT_BRAND, fontSize: '26px', color: '#C0BEBB' }}>아직 사연이 없어요</p>
+              <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#DED9D3' }}>‘낭만 기록하기’로 첫 사연을 남겨보세요</p>
+            </div>
+          ) : (
+            <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '32px 40px 64px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', margin: '0 0 22px 2px' }}>
+                <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#8A8480', letterSpacing: '0.1em' }}>낭만 사연</span>
+                <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#C0BEBB' }}>{gallerySpots.length}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', alignItems: 'start' }}>
+                {gallerySpots.map(spot => <GalleryCard key={spot.id} spot={spot} />)}
+              </div>
+            </div>
           )}
         </div>
-      </main>
+
+        {/* 기록 오버레이 — 지도 없이 검색으로 위치 지정 */}
+        {phase === 'picking' && (
+          <LocationPicker
+            desktop
+            pin={pin}
+            onPinUpdate={handlePinUpdate}
+            onMapFlyTo={handleMapFlyTo}
+            onConfirm={confirmPin}
+            onCancel={closeRecord}
+          />
+        )}
+        {phase === 'preview' && pin && (
+          <PlacePreviewCard desktop pin={pin} onConfirm={confirmPreview} onReselect={reselectPin} />
+        )}
+        {phase === 'form' && (
+          <RecordModal pin={pin} desktop onClose={closeRecord} onSubmit={handleSubmit} />
+        )}
+      </div>
     )
   }
 
@@ -707,23 +650,167 @@ export default function App() {
   )
 }
 
-/* ── 대구 시작 CTA ── */
+/* ── 입장 포토부스 (카메라) ── */
+function CameraBooth({ desktop = false }: { desktop?: boolean }) {
+  const videoRef  = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [photo, setPhoto]   = useState<string | null>(null)
+  const [status, setStatus] = useState<'loading' | 'on' | 'error'>('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    async function start() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play().catch(() => {})
+        }
+        setStatus('on')
+      } catch {
+        setStatus('error')
+      }
+    }
+    start()
+    return () => { cancelled = true; streamRef.current?.getTracks().forEach(t => t.stop()) }
+  }, [])
+
+  const capture = () => {
+    const v = videoRef.current
+    if (!v || !v.videoWidth) return
+    const canvas = document.createElement('canvas')
+    canvas.width = v.videoWidth
+    canvas.height = v.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.translate(canvas.width, 0); ctx.scale(-1, 1)   // 거울 반전 보정
+    ctx.drawImage(v, 0, 0)
+    setPhoto(canvas.toDataURL('image/jpeg', 0.9))
+  }
+  const save = () => {
+    if (!photo) return
+    const a = document.createElement('a')
+    a.href = photo
+    a.download = `낭만여지도_${Date.now()}.jpg`
+    a.click()
+  }
+
+  const btnBase: React.CSSProperties = { fontFamily: FONT_UI, fontSize: '13px', letterSpacing: '0.04em', padding: '11px 24px', borderRadius: '99px', cursor: 'pointer', transition: 'all 0.18s' }
+
+  return (
+    <div style={{ width: desktop ? '440px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+      <div style={{ width: '100%', aspectRatio: '4/3', borderRadius: '18px', overflow: 'hidden', background: '#2A2520', position: 'relative', border: '3px solid #800020', boxShadow: '0 8px 30px rgba(128,0,32,0.14)' }}>
+        {photo ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={photo} alt="촬영한 사진" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transform: 'scaleX(-1)' }} />
+        )}
+        {status !== 'on' && !photo && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#FAF8F5', textAlign: 'center', padding: '20px' }}>
+            <span style={{ fontSize: '30px' }}>📷</span>
+            <span style={{ fontFamily: FONT_UI, fontSize: '12px', lineHeight: 1.6, opacity: 0.85, whiteSpace: 'pre-line' }}>
+              {status === 'loading' ? '카메라를 켜는 중…' : '카메라를 사용할 수 없어요.\n권한을 허용했는지 확인해주세요.'}
+            </span>
+          </div>
+        )}
+        <span style={{ position: 'absolute', left: '14px', bottom: '12px', fontFamily: FONT_BRAND, fontSize: '20px', color: 'rgba(250,248,245,0.92)', textShadow: '0 1px 6px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>낭만여지도</span>
+      </div>
+
+      {photo ? (
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={() => setPhoto(null)} style={{ ...btnBase, background: 'transparent', border: '1px solid #DED9D3', color: '#8A8480' }}>다시 찍기</button>
+          <button onClick={save} style={{ ...btnBase, background: '#800020', color: '#FAF8F5', border: '1px solid #800020' }}>사진 저장</button>
+        </div>
+      ) : (
+        <button onClick={capture} disabled={status !== 'on'} style={{ ...btnBase, background: status === 'on' ? '#2A2520' : '#EDE9E4', color: status === 'on' ? '#FAF8F5' : '#C0BEBB', border: 'none', cursor: status === 'on' ? 'pointer' : 'default' }}>
+          📸 사진 찍기
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* ── 입장 CTA (포토부스 + 입장 버튼) ── */
 function DaeguStart({ onStart, desktop = false }: { onStart: () => void; desktop?: boolean }) {
   const [hovered, setHovered] = useState(false)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: desktop ? '26px' : '20px' }}>
-      <RegionSilhouette regionId="daegu" size={desktop ? 150 : 112} hovered />
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '44px' : '32px', color: '#2A2520', lineHeight: 1.05 }}>대구</p>
-        <p style={{ fontFamily: FONT_UI, fontSize: desktop ? '13px' : '11px', color: '#C0BEBB', letterSpacing: '0.08em', marginTop: '12px', wordBreak: 'keep-all' }}>{DAEGU.mood}</p>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: desktop ? '28px' : '22px' }}>
+      <CameraBooth desktop={desktop} />
       <button onClick={onStart} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: desktop ? '8px' : '4px', fontFamily: FONT_BRAND, fontSize: desktop ? '22px' : '18px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: desktop ? '16px 46px' : '14px 38px', cursor: 'pointer', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)', transition: 'all 0.2s ease' }}>
-        대구 낭만지도 보기
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '20px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: desktop ? '16px 48px' : '15px 40px', cursor: 'pointer', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)', transition: 'all 0.2s ease' }}>
+        낭만여지도 입장하기
+        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
         </svg>
       </button>
     </div>
+  )
+}
+
+/* ── 사연 갤러리 카드 (데스크탑) ── */
+const CATEGORY_COLOR: Record<string, string> = { 낭만: '#800020', 젊음: '#2A6040', 사랑: '#B0402B' }
+
+function formatDate(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
+function GalleryCard({ spot }: { spot: Spot }) {
+  const [hovered, setHovered] = useState(false)
+  const color = CATEGORY_COLOR[spot.category] ?? '#800020'
+  const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(spot.placeName)}`
+  return (
+    <article
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{ background: '#FFFFFF', border: `1px solid ${hovered ? '#E4D5D5' : '#EDEAE5'}`, borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: hovered ? '0 12px 30px rgba(0,0,0,0.10)' : '0 2px 10px rgba(0,0,0,0.04)', transform: hovered ? 'translateY(-3px)' : 'translateY(0)', transition: 'all 0.22s ease' }}
+    >
+      {/* 사진 */}
+      {spot.imageUrl && (
+        <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', background: '#F0EDE8' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={spot.imageUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
+      )}
+
+      <div style={{ padding: '20px 22px 18px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        {/* 카테고리 + 날짜 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{ fontFamily: FONT_UI, fontSize: '9px', color, letterSpacing: '0.16em', fontWeight: 600 }}>{spot.category}</span>
+          <span style={{ fontFamily: FONT_UI, fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.06em' }}>{formatDate(spot.createdAt)}</span>
+        </div>
+
+        {/* 제목 */}
+        {spot.title && (
+          <p style={{ fontFamily: FONT_BRAND, fontSize: '22px', color: '#111', lineHeight: 1.3, marginBottom: '4px', wordBreak: 'keep-all' }}>{spot.title}</p>
+        )}
+        {/* 글쓴이 */}
+        <p style={{ fontFamily: FONT_BRAND, fontSize: '13px', color: '#B5B0AB', marginBottom: '12px', letterSpacing: '0.02em' }}>by {spot.nickname || '익명'}</p>
+
+        {/* 사연 */}
+        <p style={{ fontFamily: FONT_UI, fontSize: '14px', color: '#2A2520', lineHeight: 1.85, wordBreak: 'keep-all', marginBottom: '18px', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>
+          {spot.moment}
+        </p>
+
+        {/* 장소 — 네이버 지도 외부 링크 */}
+        <a
+          href={naverUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ marginTop: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start', padding: '7px 14px', background: '#FFF5F5', borderRadius: '99px', fontFamily: FONT_UI, fontSize: '11px', color: '#800020', letterSpacing: '0.02em', textDecoration: 'none', transition: 'background 0.15s' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = '#FBE9E9' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = '#FFF5F5' }}
+        >
+          <span style={{ fontSize: '11px' }}>📍</span>
+          {spot.placeName}
+          <span style={{ color: '#C99', marginLeft: '2px' }}>· 네이버 지도에서 보기</span>
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '1px' }}>
+            <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
+          </svg>
+        </a>
+      </div>
+    </article>
   )
 }

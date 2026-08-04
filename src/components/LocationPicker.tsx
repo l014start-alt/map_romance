@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 
 export interface PinData {
   lat: number
@@ -26,9 +26,11 @@ interface LocationPickerProps {
   onMapFlyTo: (lat: number, lng: number, zoom?: number) => void
   onConfirm: (pin?: PinData) => void
   onCancel: () => void
+  /** 데스크탑(지도 없는 갤러리)에서 중앙 모달 + 검색 전용으로 표시 */
+  desktop?: boolean
 }
 
-export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm, onCancel }: LocationPickerProps) {
+export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm, onCancel, desktop = false }: LocationPickerProps) {
   const [query, setQuery]       = useState('')
   const [searching, setSearching] = useState(false)
   const [results, setResults]   = useState<SearchResult[]>([])
@@ -115,9 +117,18 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
     onConfirm(pinData)
   }
 
-  return (
-    <div
-      style={{
+  const rootStyle: CSSProperties = desktop
+    ? {
+        position: 'absolute',
+        top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: '460px', maxWidth: '92%',
+        zIndex: 600,
+        background: '#FAF8F5',
+        borderRadius: '16px',
+        padding: '26px 26px 28px',
+        boxShadow: '0 16px 56px rgba(0,0,0,0.22)',
+      }
+    : {
         position: 'absolute',
         bottom: 0, left: 0, right: 0,
         zIndex: 500,
@@ -125,12 +136,23 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
         borderRadius: '14px 14px 0 0',
         padding: '0 20px 32px',
         boxShadow: '0 -4px 28px rgba(0,0,0,0.14)',
-      }}
-    >
-      {/* 핸들 */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
-        <div style={{ width: '32px', height: '3px', background: '#DED9D3', borderRadius: '2px' }} />
-      </div>
+      }
+
+  const card = (
+    <div style={rootStyle}>
+      {/* 핸들 (모바일 바텀시트) */}
+      {!desktop && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
+          <div style={{ width: '32px', height: '3px', background: '#DED9D3', borderRadius: '2px' }} />
+        </div>
+      )}
+
+      {/* 데스크탑 타이틀 */}
+      {desktop && (
+        <p style={{ fontFamily: 'var(--font-brand)', fontSize: '22px', color: '#800020', textAlign: 'center', marginBottom: '16px', lineHeight: 1.1 }}>
+          어디에서의 낭만인가요?
+        </p>
+      )}
 
       {/* 안내 문구 */}
       <p style={{
@@ -139,7 +161,7 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
         textAlign: 'center', marginBottom: '16px', letterSpacing: '0.02em',
         transition: 'color 0.2s',
       }}>
-        {pin ? `📍 ${pin.address || '위치 선택됨'}` : '지도를 클릭하거나 장소·주소를 검색해주세요'}
+        {pin ? `📍 ${pin.address || '위치 선택됨'}` : (desktop ? '장소명이나 주소로 검색해 위치를 지정하세요' : '지도를 클릭하거나 장소·주소를 검색해주세요')}
       </p>
 
       {/* 검색바 */}
@@ -287,4 +309,16 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
       )}
     </div>
   )
+
+  if (desktop) {
+    return (
+      <div
+        style={{ position: 'absolute', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(2px)' }}
+        onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+      >
+        {card}
+      </div>
+    )
+  }
+  return card
 }

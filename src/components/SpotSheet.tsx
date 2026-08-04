@@ -9,6 +9,7 @@ interface SpotSheetProps {
   onDelete: (spotId: string) => void
   onUpdate: (spotId: string, data: Partial<Pick<Spot, 'title' | 'moment' | 'category'>>) => void
   verifyPassword: (spotId: string, pw: string) => boolean
+  desktop?: boolean
 }
 
 type PendingAction = { type: 'edit' | 'delete'; spotId: string } | null
@@ -21,7 +22,7 @@ function formatDate(iso: string) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function SpotSheet({ group, onClose, onDelete, onUpdate, verifyPassword }: SpotSheetProps) {
+export default function SpotSheet({ group, onClose, onDelete, onUpdate, verifyPassword, desktop = false }: SpotSheetProps) {
   const [expandedId, setExpandedId]       = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [pwInput, setPwInput]             = useState('')
@@ -78,15 +79,17 @@ export default function SpotSheet({ group, onClose, onDelete, onUpdate, verifyPa
 
   return (
     <div
-      style={{ position: 'absolute', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'flex-end', background: 'rgba(0,0,0,0.38)', backdropFilter: 'blur(3px)' }}
+      style={{ position: 'absolute', inset: 0, zIndex: 9000, display: 'flex', alignItems: desktop ? 'stretch' : 'flex-end', justifyContent: 'flex-start', padding: desktop ? '80px 0 24px 24px' : 0, background: desktop ? 'rgba(0,0,0,0.16)' : 'rgba(0,0,0,0.38)', backdropFilter: 'blur(3px)' }}
       onClick={(e) => { if (e.target === e.currentTarget && !pendingAction) onClose() }}
     >
-      <div style={{ width: '100%', maxHeight: '88dvh', display: 'flex', flexDirection: 'column', background: '#FAF8F5', borderRadius: '16px 16px 0 0', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ width: desktop ? '420px' : '100%', maxHeight: desktop ? 'none' : '88dvh', height: desktop ? '100%' : undefined, display: 'flex', flexDirection: 'column', background: '#FAF8F5', borderRadius: desktop ? '16px' : '16px 16px 0 0', overflow: 'hidden', position: 'relative', boxShadow: desktop ? '0 12px 48px rgba(0,0,0,0.18)' : 'none' }}>
 
-        {/* 핸들 */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '12px', paddingBottom: '2px', flexShrink: 0 }}>
-          <div style={{ width: '32px', height: '3px', background: '#DED9D3', borderRadius: '2px' }} />
-        </div>
+        {/* 핸들 (모바일 바텀시트에서만) */}
+        {!desktop && (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '12px', paddingBottom: '2px', flexShrink: 0 }}>
+            <div style={{ width: '32px', height: '3px', background: '#DED9D3', borderRadius: '2px' }} />
+          </div>
+        )}
 
         {/* 헤더 */}
         <div style={{ padding: '10px 20px 14px', borderBottom: '1px solid #EDE9E4', flexShrink: 0 }}>

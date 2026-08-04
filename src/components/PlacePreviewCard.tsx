@@ -6,9 +6,10 @@ interface PlacePreviewCardProps {
   pin: PinData
   onConfirm: () => void
   onReselect: () => void
+  desktop?: boolean
 }
 
-export default function PlacePreviewCard({ pin, onConfirm, onReselect }: PlacePreviewCardProps) {
+export default function PlacePreviewCard({ pin, onConfirm, onReselect, desktop = false }: PlacePreviewCardProps) {
   const isLoading = !pin.address || pin.address === '주소 확인 중…'
 
   /* ── 타이틀 결정 ──
@@ -20,9 +21,18 @@ export default function PlacePreviewCard({ pin, onConfirm, onReselect }: PlacePr
   /* ── 주소 부제 (타이틀과 다를 때만 표시) ── */
   const subtitle = pin.address && !isLoading && pin.address !== title ? pin.address : null
 
-  return (
+  const card = (
     <div
-      style={{
+      style={desktop ? {
+        position: 'absolute',
+        top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: '440px', maxWidth: '92%',
+        zIndex: 600,
+        background: '#FAF8F5',
+        borderRadius: '16px',
+        padding: '30px 26px 28px',
+        boxShadow: '0 16px 56px rgba(0,0,0,0.22)',
+      } : {
         position: 'absolute',
         bottom: 0, left: 0, right: 0,
         zIndex: 500,
@@ -32,10 +42,12 @@ export default function PlacePreviewCard({ pin, onConfirm, onReselect }: PlacePr
         boxShadow: '0 -6px 32px rgba(0,0,0,0.13)',
       }}
     >
-      {/* 핸들 바 */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 20px' }}>
-        <div style={{ width: '36px', height: '3px', background: '#DED9D3', borderRadius: '2px' }} />
-      </div>
+      {/* 핸들 바 (모바일) */}
+      {!desktop && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 20px' }}>
+          <div style={{ width: '36px', height: '3px', background: '#DED9D3', borderRadius: '2px' }} />
+        </div>
+      )}
 
       {/* 장소 정보 */}
       <div style={{ marginBottom: '22px' }}>
@@ -144,4 +156,13 @@ export default function PlacePreviewCard({ pin, onConfirm, onReselect }: PlacePr
       </div>
     </div>
   )
+
+  if (desktop) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(2px)' }}>
+        {card}
+      </div>
+    )
+  }
+  return card
 }
