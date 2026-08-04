@@ -651,11 +651,13 @@ export default function App() {
 }
 
 /* ── 입장 포토부스 (카메라) ── */
-function CameraBooth({ desktop = false }: { desktop?: boolean }) {
+function CameraBooth({ desktop = false, onCaptured }: { desktop?: boolean; onCaptured?: (has: boolean) => void }) {
   const videoRef  = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [photo, setPhoto]   = useState<string | null>(null)
   const [status, setStatus] = useState<'loading' | 'on' | 'error'>('loading')
+
+  useEffect(() => { onCaptured?.(photo !== null) }, [photo, onCaptured])
 
   useEffect(() => {
     let cancelled = false
@@ -733,18 +735,35 @@ function CameraBooth({ desktop = false }: { desktop?: boolean }) {
   )
 }
 
-/* ── 입장 CTA (포토부스 + 입장 버튼) ── */
+/* ── 입장 CTA (포토부스 + 입장 버튼) — 사진을 찍어야 입장 가능 ── */
 function DaeguStart({ onStart, desktop = false }: { onStart: () => void; desktop?: boolean }) {
   const [hovered, setHovered] = useState(false)
+  const [captured, setCaptured] = useState(false)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: desktop ? '28px' : '22px' }}>
-      <CameraBooth desktop={desktop} />
-      <button onClick={onStart} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '20px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: desktop ? '16px 48px' : '15px 40px', cursor: 'pointer', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)', transition: 'all 0.2s ease' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: desktop ? '22px' : '18px' }}>
+      <CameraBooth desktop={desktop} onCaptured={setCaptured} />
+
+      <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.04em', color: captured ? '#2A6040' : '#C0BEBB', transition: 'color 0.2s', wordBreak: 'keep-all', textAlign: 'center' }}>
+        {captured ? '준비됐어요! 이제 입장할 수 있어요' : '입장하려면 먼저 사진을 찍어주세요'}
+      </p>
+
+      <button
+        onClick={() => { if (captured) onStart() }}
+        disabled={!captured}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '20px', letterSpacing: '0.04em', color: captured ? '#FAF8F5' : '#C0BEBB', background: captured ? '#800020' : '#EDE9E4', padding: desktop ? '16px 48px' : '15px 40px', cursor: captured ? 'pointer' : 'not-allowed', transform: captured && hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: captured ? (hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)') : 'none', transition: 'all 0.2s ease' }}
+      >
+        {!captured && (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+        )}
         낭만여지도 입장하기
-        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
-        </svg>
+        {captured && (
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
+          </svg>
+        )}
       </button>
     </div>
   )
