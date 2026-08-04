@@ -8,14 +8,13 @@ import LocationPicker, { type PinData } from '@/components/LocationPicker'
 import PlacePreviewCard from '@/components/PlacePreviewCard'
 import SpotSheet from '@/components/SpotSheet'
 import FeedView from '@/components/FeedView'
-import DaeguMap from '@/components/DaeguMap'
 import Footer from '@/components/Footer'
 import { Spot, Category, LocationGroup } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
 
 const LeafletMap = dynamic(() => import('@/components/NaverMap'), { ssr: false })
 
-type View = 'landing' | 'daegu-districts' | 'map'
+type View = 'landing' | 'map'
 type Tab  = 'map' | 'feed'
 type RecordPhase = 'idle' | 'picking' | 'preview' | 'form'
 type Filter = 'all' | Category
@@ -126,11 +125,7 @@ export default function App() {
     setSelectedRegion(region)
     setMapFlyTarget(null)
     setTab('map')
-    if (region.id === 'daegu') {
-      setView('daegu-districts')
-    } else {
-      setView('map')
-    }
+    setView('map')
   })
   const goBack = () => transition(() => {
     setView('landing'); setActiveGroupKey(null)
@@ -340,42 +335,6 @@ export default function App() {
           <DaeguStart onStart={() => goMap(DAEGU)} />
         </div>
         <Footer />
-      </div>
-    )
-  }
-
-  /* ════════ DAEGU DISTRICTS VIEW ════════ */
-  if (view === 'daegu-districts') {
-    return (
-      <div style={{ ...pageStyle, background: '#FAF8F5', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        {/* 헤더 */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #EDE9E4', background: 'rgba(250,248,245,0.97)', position: 'sticky', top: 0, zIndex: 10 }}>
-          <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#6B6560', cursor: 'pointer', minWidth: '44px', minHeight: '44px', padding: '0 6px' }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="13,4 7,10 13,16" />
-            </svg>
-            지역 선택
-          </button>
-          <p style={{ fontFamily: FONT_BRAND, fontSize: '17px', color: '#800020', lineHeight: 1.1 }}>낭만여지도</p>
-          <div style={{ width: '44px' }} />
-        </header>
-
-        {/* 안내 문구 */}
-        <div style={{ padding: '20px 20px 8px', textAlign: 'center' }}>
-          <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#A09890', letterSpacing: '0.04em' }}>구역을 눌러 지도로 이동하세요</p>
-        </div>
-
-        {/* 대구 인터랙티브 지도 */}
-        <div style={{ flex: 1, padding: '0 12px 40px', width: '100%', maxWidth: isDesktop ? '720px' : undefined, margin: '0 auto', display: 'flex', alignItems: 'center' }}>
-          <DaeguMap
-            onRegionClick={() => {
-              transition(() => {
-                setTab('map')
-                setView('map')
-              })
-            }}
-          />
-        </div>
       </div>
     )
   }
