@@ -26,16 +26,8 @@ interface Region {
   lat: number; lng: number; zoom: number; mood: string
 }
 
-const REGIONS: Region[] = [
-  { id: 'seoul',     name: '서울', emoji: '🏙️', lat: 37.5665,  lng: 126.9780, zoom: 13, mood: '골목과 지붕이 겹치는 곳' },
-  { id: 'busan',     name: '부산', emoji: '🌊', lat: 35.1796,  lng: 129.0756, zoom: 13, mood: '파도가 쓰는 일기' },
-  { id: 'daegu',     name: '대구', emoji: '🍎', lat: 35.8714,  lng: 128.6014, zoom: 13, mood: '뜨겁고 달콤한 여름' },
-  { id: 'jeju',      name: '제주', emoji: '🍊', lat: 33.4996,  lng: 126.5312, zoom: 12, mood: '바람이 남긴 문장' },
-  { id: 'daejeon',   name: '대전', emoji: '🌙', lat: 36.3504,  lng: 127.3845, zoom: 13, mood: '느린 밤의 온도' },
-  { id: 'gwangju',   name: '광주', emoji: '🌸', lat: 35.1595,  lng: 126.8526, zoom: 13, mood: '예술이 피어나는 봄' },
-  { id: 'gyeongju',  name: '경주', emoji: '🏺', lat: 35.8562,  lng: 129.2247, zoom: 13, mood: '천 년의 낭만' },
-  { id: 'gangneung', name: '강릉', emoji: '☕', lat: 37.7519,  lng: 128.8761, zoom: 13, mood: '커피향이 파도처럼' },
-]
+/* 낭만여지도는 대구 전용 — 단일 지역 */
+const DAEGU: Region = { id: 'daegu', name: '대구', emoji: '🍎', lat: 35.8714, lng: 128.6014, zoom: 13, mood: '뜨겁고 달콤한 여름' }
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_UI    = 'var(--font-sans)'
@@ -318,15 +310,8 @@ export default function App() {
 
         {/* 우측 — 지역 선택 + 푸터 */}
         <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flex: 1, padding: '64px 56px 40px', maxWidth: '900px', width: '100%', margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '40px' }}>
-              <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
-              <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#C0BEBB', letterSpacing: '0.18em', whiteSpace: 'nowrap' }}>여행지를 골라주세요</span>
-              <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '18px' }}>
-              {REGIONS.map(region => <RegionCard key={region.id} region={region} onClick={goMap} desktop />)}
-            </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 56px' }}>
+            <DaeguStart onStart={() => goMap(DAEGU)} desktop />
           </div>
           <Footer />
         </div>
@@ -351,16 +336,9 @@ export default function App() {
           />
         </div>
 
-        {/* 지역 선택 섹션 */}
-        <div style={{ flex: 1, padding: '0 20px 60px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '28px 0 24px' }}>
-            <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
-            <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.16em', whiteSpace: 'nowrap' }}>여행지를 골라주세요</span>
-            <div style={{ flex: 1, height: '1px', background: '#EDE9E4' }} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-            {REGIONS.map(region => <RegionCard key={region.id} region={region} onClick={goMap} />)}
-          </div>
+        {/* 대구 시작 섹션 */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '36px 20px 56px' }}>
+          <DaeguStart onStart={() => goMap(DAEGU)} />
         </div>
         <Footer />
       </div>
@@ -389,7 +367,7 @@ export default function App() {
         </div>
 
         {/* 대구 인터랙티브 지도 */}
-        <div style={{ flex: 1, padding: '0 12px 40px', width: '100%', maxWidth: isDesktop ? '560px' : undefined, margin: '0 auto' }}>
+        <div style={{ flex: 1, padding: '0 12px 40px', width: '100%', maxWidth: isDesktop ? '720px' : undefined, margin: '0 auto', display: 'flex', alignItems: 'center' }}>
           <DaeguMap
             onRegionClick={() => {
               transition(() => {
@@ -729,15 +707,23 @@ export default function App() {
   )
 }
 
-/* ── 지역 카드 ── */
-function RegionCard({ region, onClick, desktop = false }: { region: Region; onClick: (r: Region) => void; desktop?: boolean }) {
+/* ── 대구 시작 CTA ── */
+function DaeguStart({ onStart, desktop = false }: { onStart: () => void; desktop?: boolean }) {
   const [hovered, setHovered] = useState(false)
   return (
-    <button onClick={() => onClick(region)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: desktop ? '34px 16px 28px' : '22px 12px 18px', background: hovered ? '#FFF8F8' : '#FFFFFF', border: `1px solid ${hovered ? '#800020' : '#EDEAE5'}`, cursor: 'pointer', transform: hovered ? 'translateY(-3px)' : 'translateY(0)', boxShadow: hovered ? '0 8px 24px rgba(128,0,32,0.12)' : '0 1px 4px rgba(0,0,0,0.04)', transition: 'all 0.22s ease', gap: desktop ? '14px' : '10px' }}>
-      <RegionSilhouette regionId={region.id} size={desktop ? 104 : 76} hovered={hovered} />
-      <span style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '30px' : '22px', color: hovered ? '#800020' : '#2A2520', lineHeight: 1.1, marginTop: '2px' }}>{region.name}</span>
-      <span style={{ fontFamily: FONT_UI, fontSize: desktop ? '11px' : '9px', color: '#C0BEBB', letterSpacing: '0.04em', textAlign: 'center', wordBreak: 'keep-all', lineHeight: 1.6 }}>{region.mood}</span>
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: desktop ? '26px' : '20px' }}>
+      <RegionSilhouette regionId="daegu" size={desktop ? 150 : 112} hovered />
+      <div style={{ textAlign: 'center' }}>
+        <p style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '44px' : '32px', color: '#2A2520', lineHeight: 1.05 }}>대구</p>
+        <p style={{ fontFamily: FONT_UI, fontSize: desktop ? '13px' : '11px', color: '#C0BEBB', letterSpacing: '0.08em', marginTop: '12px', wordBreak: 'keep-all' }}>{DAEGU.mood}</p>
+      </div>
+      <button onClick={onStart} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: desktop ? '8px' : '4px', fontFamily: FONT_BRAND, fontSize: desktop ? '22px' : '18px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: desktop ? '16px 46px' : '14px 38px', cursor: 'pointer', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)', transition: 'all 0.2s ease' }}>
+        대구 낭만지도 보기
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
+        </svg>
+      </button>
+    </div>
   )
 }
