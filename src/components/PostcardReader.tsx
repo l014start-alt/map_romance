@@ -7,11 +7,33 @@
    ══════════════════════════════════════════════════════════════ */
 
 import { useEffect, useRef, useState } from 'react'
-import { Spot, Category } from '@/types'
+import { Spot } from '@/types'
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_UI    = 'var(--font-sans)'
-const CAT_COLOR: Record<Category, string> = { 낭만: '#800020', 젊음: '#2A6040', 사랑: '#B0402B' }
+
+/* 타자기 효과 — text를 한 글자씩 출력. text가 바뀌면 처음부터 다시. */
+function TypedText({ text, speed = 24 }: { text: string; speed?: number }) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    setN(0)
+    if (!text) return
+    let i = 0
+    const id = setInterval(() => {
+      i += 1
+      setN(i)
+      if (i >= text.length) clearInterval(id)
+    }, speed)
+    return () => clearInterval(id)
+  }, [text, speed])
+  const done = n >= text.length
+  return (
+    <>
+      {text.slice(0, n)}
+      {!done && <span className="tw-cursor" aria-hidden="true">│</span>}
+    </>
+  )
+}
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -48,7 +70,6 @@ export default function PostcardReader({ spots }: { spots: Spot[] }) {
   }
 
   const spot = spots[i]
-  const color = CAT_COLOR[spot.category] ?? '#800020'
   const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(spot.placeName)}`
 
   return (
@@ -73,9 +94,8 @@ export default function PostcardReader({ spots }: { spots: Spot[] }) {
         )}
 
         <div style={{ padding: '28px 30px 30px' }}>
-          {/* 카테고리 + 날짜 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-            <span style={{ fontFamily: FONT_UI, fontSize: '11px', color, letterSpacing: '0.16em', fontWeight: 600 }}>{spot.category}</span>
+          {/* 날짜 */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
             <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0BEBB', letterSpacing: '0.06em' }}>{formatDate(spot.createdAt)}</span>
           </div>
 
@@ -86,9 +106,9 @@ export default function PostcardReader({ spots }: { spots: Spot[] }) {
           {/* 글쓴이 */}
           <p style={{ fontFamily: FONT_BRAND, fontSize: '15px', color: '#B5B0AB', marginBottom: '22px', letterSpacing: '0.02em' }}>by {spot.nickname || '익명'}</p>
 
-          {/* 본문 */}
-          <p style={{ fontFamily: FONT_UI, fontSize: '15px', color: '#2A2520', lineHeight: 2.05, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>
-            {spot.moment}
+          {/* 본문 — 타자 치듯 한 글자씩 (사연이 바뀌면 다시 타이핑) */}
+          <p style={{ fontFamily: FONT_UI, fontSize: '15px', color: '#2A2520', lineHeight: 2.05, wordBreak: 'keep-all', whiteSpace: 'pre-line', minHeight: '4.1em' }}>
+            <TypedText text={spot.moment} />
           </p>
 
           {/* 장소 */}

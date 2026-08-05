@@ -416,16 +416,7 @@ export default function App() {
               </button>
             </div>
           </div>
-          {/* 카테고리 필터 (엽서 모드에서만) */}
-          {isRead && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', padding: '0 16px 12px' }}>
-              {FILTER_LABELS.map(f => (
-                <button key={f} onClick={() => setFilter(f)} style={{ fontFamily: FONT_UI, fontSize: '12px', cursor: 'pointer', padding: '6px 14px', borderRadius: '99px', background: filter === f ? '#FBEDED' : 'transparent', color: filter === f ? '#800020' : '#B5B0AB', fontWeight: filter === f ? 500 : 400, transition: 'all 0.16s' }}>
-                  {FILTER_KR[f]}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* 카테고리 필터 제거 — 사연을 하나의 흐름으로 봄 */}
         </header>
 
         {/* 본문 */}

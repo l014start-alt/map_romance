@@ -78,3 +78,13 @@ body {
   0%, 100% { opacity: 0.35; r: 16; }
   50%      { opacity: 0.12; r: 22; }
 }
+
+/* ── 타자기 효과: 본문 뒤 깜빡이는 커서 ── */
+@keyframes tw-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.tw-cursor {
+  display: inline-block;
+  color: #800020;
+  margin-left: 1px;
+  font-weight: 400;
+  animation: tw-blink 0.85s step-end infinite;
+}
