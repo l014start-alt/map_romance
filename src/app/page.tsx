@@ -288,10 +288,9 @@ export default function App() {
   /* ════════ LANDING VIEW — 데스크탑 (좌우 분할) ════════ */
   if (view === 'landing' && isDesktop) {
     return (
-      // position:relative — 우측 하단 밀착 Footer의 기준 컨테이너
-      <div style={{ ...pageStyle, position: 'relative', background: '#FAF8F5', display: 'flex', overflow: 'hidden' }}>
+      <div style={{ ...pageStyle, background: '#FAF8F5', display: 'flex', overflow: 'hidden' }}>
 
-        {/* 좌측 — 히어로 일러스트 (상단 선은 이미지 파일에서 제거 완료) */}
+        {/* 좌측 — 히어로 일러스트 (그대로 유지, 상단 선은 이미지 파일에서 제거 완료) */}
         <div style={{ width: '46%', minWidth: '420px', maxWidth: '760px', height: '100%', background: '#FAF8F5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px', borderRight: '1px solid #EDE9E4' }}>
           <Image
             src="/hero-map.png"
@@ -303,14 +302,13 @@ export default function App() {
           />
         </div>
 
-        {/* 우측 — 캐릭터/지역 선택 입장 게이트 (하단 padding으로 Footer와 겹침 방지) */}
-        <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 56px 120px' }}>
-          <EntryGate onStart={() => goMap(DAEGU)} desktop />
-        </div>
-
-        {/* 변경: '낭만젊음사랑' 소개글을 화면 우측 하단으로 밀착 배치 */}
-        <div style={{ position: 'absolute', right: 0, bottom: 0, zIndex: 5 }}>
-          <Footer align="right" />
+        {/* 우측 — 남는 공간: (위)입장 게이트 + (아래)2단 분할 Footer */}
+        <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 56px' }}>
+            <EntryGate onStart={() => goMap(DAEGU)} desktop />
+          </div>
+          {/* 변경: 우측 영역 하단을 좌(상호+주소)/우(나머지)로 분할 */}
+          <Footer />
         </div>
       </div>
     )
@@ -338,8 +336,8 @@ export default function App() {
           <EntryGate onStart={() => goMap(DAEGU)} />
         </div>
 
-        {/* 변경: 소개글을 우측 하단으로 밀착(우측 정렬) */}
-        <Footer align="right" />
+        {/* 소개글 — 좌(상호+주소)/우(나머지) 2단 분할 */}
+        <Footer />
       </div>
     )
   }
@@ -619,19 +617,28 @@ export default function App() {
    → 캐릭터 선택 + 출신 지역 선택 후 '입장하기' 게이트로 교체
    ══════════════════════════════════════════════════════════ */
 
-/* 선택 가능한 캐릭터 (public 폴더의 PNG 아이콘 재사용) */
+/* ══════════════════════════════════════════════════════════
+   변경: 캐릭터 아이콘을 '낭만여지도' 일러스트(hero-map.png) 속
+   요소들로 교체. public/characters/*.png 에 저장돼 있음.
+   ▶ 다른 스프라이트/이미지로 바꾸려면 아래 src 경로만 수정하면 됩니다.
+     (예: '/characters/beer.png' → 원하는 파일 경로로 교체)
+   ══════════════════════════════════════════════════════════ */
 const CHARACTERS: { id: string; name: string; src: string }[] = [
-  { id: 'star',   name: '별',    src: '/별.png' },
-  { id: 'sun',    name: '태양',  src: '/태양.png' },
-  { id: 'bolt',   name: '번개',  src: '/번개.png' },
-  { id: 'rain',   name: '빗방울', src: '/빗방울.png' },
-  { id: 'coffee', name: '커피',  src: '/커피컵.png' },
-  { id: 'beer',   name: '맥주',  src: '/맥주.png' },
-  { id: 'house',  name: '나무집', src: '/나무_집.png' },
+  { id: 'beer',     name: '맥주',   src: '/characters/beer.png' },
+  { id: 'sun',      name: '태양',   src: '/characters/sun.png' },
+  { id: 'car',      name: '자동차', src: '/characters/car.png' },
+  { id: 'wine',     name: '와인',   src: '/characters/wine.png' },
+  { id: 'mountain', name: '산',     src: '/characters/mountain.png' },
+  { id: 'clock',    name: '시계',   src: '/characters/clock.png' },
+  { id: 'pin',      name: '지도핀', src: '/characters/pin.png' },
+  { id: 'music',    name: '음악',   src: '/characters/music.png' },
 ]
 
-/* 어느 지역에서 왔는지 — 출신 지역 목록 */
-const ORIGINS = ['서울', '경기·인천', '강원', '충청', '대구·경북', '부산·경남', '광주·전라', '제주']
+/* 변경: 어느 지역에서 왔는지 — 전국 17개 시·도(광역 지자체)로 확대 */
+const ORIGINS = [
+  '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기',
+  '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
+]
 
 const VISITOR_KEY = 'map_romance_visitor'
 
