@@ -11,6 +11,7 @@ import FeedView from '@/components/FeedView'
 import Footer from '@/components/Footer'
 import { Spot, Category, LocationGroup } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
+import { saveVisitorSelection } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
 
 const LeafletMap = dynamic(() => import('@/components/NaverMap'), { ssr: false })
 
@@ -80,6 +81,9 @@ export default function App() {
   const [focusGroupKey, setFocusGroupKey] = useState<string | null>(null)
   const [locating, setLocating]   = useState(false)
 
+  // 요구사항 2: 입장 시 선택한 캐릭터/지역 (헤더 뱃지 표시용)
+  const [visitor, setVisitor]     = useState<{ characterId: string; region: string } | null>(null)
+
   const isDesktop = useIsDesktop()
 
   const filteredSpots  = filter === 'all' ? spots : spots.filter(s => s.category === filter)
@@ -127,6 +131,13 @@ export default function App() {
     setTab('map')
     setView('map')
   })
+
+  /* ── 입장 처리 — 선택값 저장(통계) + 헤더 뱃지용 state + 지도 진입 ── */
+  const enterWithSelection = (characterId: string, region: string) => {
+    setVisitor({ characterId, region })       // 요구사항 2: 헤더에 표시
+    saveVisitorSelection(characterId, region) // 요구사항 3: LocalStorage 통계 저장(+백엔드 훅)
+    goMap(DAEGU)
+  }
   const goBack = () => transition(() => {
     setView('landing'); setActiveGroupKey(null)
     setPhase('idle'); setPin(null)
@@ -305,7 +316,7 @@ export default function App() {
         {/* 우측 — 남는 공간: (위)입장 게이트 + (아래)2단 분할 Footer */}
         <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 56px' }}>
-            <EntryGate onStart={() => goMap(DAEGU)} desktop />
+            <EntryGate onStart={enterWithSelection} desktop />
           </div>
           {/* 변경: 우측 영역 하단을 좌(상호+주소)/우(나머지)로 분할 */}
           <Footer />
@@ -333,7 +344,7 @@ export default function App() {
 
         {/* 입장 게이트 — 캐릭터/지역 선택 */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '28px 20px 40px' }}>
-          <EntryGate onStart={() => goMap(DAEGU)} />
+          <EntryGate onStart={enterWithSelection} />
         </div>
 
         {/* 소개글 — 좌(상호+주소)/우(나머지) 2단 분할 */}
@@ -363,6 +374,8 @@ export default function App() {
               <span style={{ fontFamily: FONT_BRAND, fontSize: '28px', color: '#800020', lineHeight: 1 }}>낭만여지도</span>
               <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', letterSpacing: '0.04em' }}>· 대구</span>
             </div>
+            {/* 요구사항 2: 선택한 캐릭터 아이콘 + 지역 뱃지 */}
+            {visitor && <VisitorBadge characterId={visitor.characterId} region={visitor.region} />}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: '2px' }}>
@@ -437,6 +450,13 @@ export default function App() {
           isPickingMode={tab === 'map' && phase === 'picking'}
         />
       </div>
+
+      {/* 요구사항 2(모바일): 선택 캐릭터+지역 뱃지 — 헤더 아래 중앙에 작게 떠 있음 */}
+      {phase === 'idle' && visitor && (
+        <div style={{ position: 'absolute', top: '52px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', borderRadius: '99px' }}>
+          <VisitorBadge characterId={visitor.characterId} region={visitor.region} compact />
+        </div>
+      )}
 
       {/* 지도 탭 전용 UI */}
       {tab === 'map' && (
@@ -640,7 +660,33 @@ const ORIGINS = [
   '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
 ]
 
-const VISITOR_KEY = 'map_romance_visitor'
+/* 캐릭터 id → 캐릭터 정보 조회 (헤더 뱃지 등에서 사용) */
+const getCharacter = (id: string | null | undefined) => CHARACTERS.find(c => c.id === id)
+
+/* ── 입장 후 헤더 뱃지 — 선택한 캐릭터 아이콘 + 지역 이름 (요구사항 2) ── */
+function VisitorBadge({ characterId, region, compact = false }: { characterId: string; region: string; compact?: boolean }) {
+  const ch = getCharacter(characterId)
+  if (!ch) return null
+  const size = compact ? 20 : 24
+  return (
+    <div
+      title={`${ch.name} · ${region}`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: '6px',
+        padding: compact ? '4px 10px 4px 6px' : '5px 12px 5px 6px',
+        borderRadius: '99px', background: '#FFF5F5', border: '1px solid #F0E0E0',
+      }}
+    >
+      <span style={{ width: size, height: size, borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={ch.src} alt={ch.name} style={{ width: '68%', height: '68%', objectFit: 'contain' }} />
+      </span>
+      <span style={{ fontFamily: FONT_UI, fontSize: compact ? '11px' : '12px', color: '#800020', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+        {region}에서 오심
+      </span>
+    </div>
+  )
+}
 
 /* 단계 라벨 (①/② 스텝 표시) */
 function StepLabel({ n, text }: { n: number; text: string }) {
@@ -653,17 +699,16 @@ function StepLabel({ n, text }: { n: number; text: string }) {
 }
 
 /* ── 입장 게이트 — 캐릭터 + 지역을 모두 선택해야 입장 버튼 활성화 ── */
-function EntryGate({ onStart, desktop = false }: { onStart: () => void; desktop?: boolean }) {
+function EntryGate({ onStart, desktop = false }: { onStart: (characterId: string, region: string) => void; desktop?: boolean }) {
   const [character, setCharacter] = useState<string | null>(null)   // 선택한 캐릭터 id
   const [origin, setOrigin]       = useState<string | null>(null)   // 선택한 출신 지역
   const [hovered, setHovered]     = useState(false)
   const ready = character !== null && origin !== null               // 둘 다 선택해야 입장 가능
 
   const enter = () => {
-    if (!ready) return
-    // 선택 정보 저장(추후 활용용) 후 입장
-    try { localStorage.setItem(VISITOR_KEY, JSON.stringify({ character, origin })) } catch { /* ignore */ }
-    onStart()
+    if (!character || !origin) return
+    // 선택값을 상위(App)로 전달 → 저장/헤더 표시 처리
+    onStart(character, origin)
   }
 
   return (
@@ -676,11 +721,11 @@ function EntryGate({ onStart, desktop = false }: { onStart: () => void; desktop?
           {CHARACTERS.map(c => {
             const on = character === c.id
             return (
-              <button key={c.id} onClick={() => setCharacter(c.id)} title={c.name}
-                style={{ aspectRatio: '1 / 1', borderRadius: '14px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#FFF5F5' : '#FFFFFF', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: 'pointer', boxShadow: on ? '0 4px 14px rgba(128,0,32,0.16)' : 'none', transform: on ? 'translateY(-2px)' : 'translateY(0)', transition: 'all 0.16s' }}>
+              // 요구사항 1: 아이콘 하단 한글 라벨 제거 → 아이콘만 표시 (이름은 title 툴팁으로만 유지)
+              <button key={c.id} onClick={() => setCharacter(c.id)} title={c.name} aria-label={c.name}
+                style={{ aspectRatio: '1 / 1', borderRadius: '14px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#FFF5F5' : '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: on ? '0 4px 14px rgba(128,0,32,0.16)' : 'none', transform: on ? 'translateY(-2px)' : 'translateY(0)', transition: 'all 0.16s' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.src} alt={c.name} style={{ width: '54%', height: '54%', objectFit: 'contain' }} />
-                <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: on ? '#800020' : '#B5B0AB' }}>{c.name}</span>
+                <img src={c.src} alt={c.name} style={{ width: '58%', height: '58%', objectFit: 'contain' }} />
               </button>
             )
           })}
