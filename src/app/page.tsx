@@ -15,7 +15,7 @@ import { saveVisitorSelection } from '@/lib/visitorStats' // 요구사항 3: 선
 
 const LeafletMap = dynamic(() => import('@/components/NaverMap'), { ssr: false })
 
-type View = 'landing' | 'map'
+type View = 'landing' | 'intro' | 'map'   // intro: 입장 직후 환영 인트로(2단계)
 type Tab  = 'map' | 'feed'
 type RecordPhase = 'idle' | 'picking' | 'preview' | 'form'
 type Filter = 'all' | Category
@@ -132,11 +132,11 @@ export default function App() {
     setView('map')
   })
 
-  /* ── 입장 처리 — 선택값 저장(통계) + 헤더 뱃지용 state + 지도 진입 ── */
+  /* ── 입장 처리 — 선택값 저장(통계) + 헤더 뱃지용 state + 인트로(2단계)로 ── */
   const enterWithSelection = (characterId: string, region: string) => {
     setVisitor({ characterId, region })       // 요구사항 2: 헤더에 표시
     saveVisitorSelection(characterId, region) // 요구사항 3: LocalStorage 통계 저장(+백엔드 훅)
-    goMap(DAEGU)
+    transition(() => setView('intro'))         // D안: 곧장 지도가 아니라 환영 인트로부터
   }
   const goBack = () => transition(() => {
     setView('landing'); setActiveGroupKey(null)
@@ -349,6 +349,20 @@ export default function App() {
 
         {/* 소개글 — 좌(상호+주소)/우(나머지) 2단 분할 */}
         <Footer />
+      </div>
+    )
+  }
+
+  /* ════════ INTRO VIEW — D안: 입장 직후 환영 인트로(2단계) ════════ */
+  if (view === 'intro' && visitor) {
+    return (
+      <div style={pageStyle}>
+        <EntryIntro
+          characterId={visitor.characterId}
+          region={visitor.region}
+          onEnter={() => goMap(DAEGU)}   // 버튼 → 지도(두 번째 페이지)로 진입
+          onBack={goBack}                // 다시 고르기 → 랜딩
+        />
       </div>
     )
   }
@@ -684,6 +698,54 @@ function VisitorBadge({ characterId, region, compact = false }: { characterId: s
       <span style={{ fontFamily: FONT_UI, fontSize: compact ? '11px' : '12px', color: '#800020', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
         {region}에서 오심
       </span>
+    </div>
+  )
+}
+
+/* ── D안: 입장 직후 환영 인트로 (캐릭터·지역 활용, 담백/여백 중심) ── */
+function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: string; region: string; onEnter: () => void; onBack: () => void }) {
+  const ch = getCharacter(characterId)
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div style={{ height: '100%', overflowY: 'auto', background: '#FAF8F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
+
+      {/* 선택한 캐릭터 — 크게 */}
+      <div className="const-node" style={{ position: 'relative', width: '104px', height: '104px', borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(128,0,32,0.08)', marginBottom: '30px' }}>
+        {ch && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={ch.src} alt={ch.name} style={{ width: '58%', height: '58%', objectFit: 'contain' }} />
+        )}
+      </div>
+
+      {/* eyebrow */}
+      <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.22em', color: '#B5B0AB', marginBottom: '16px' }}>NANGMAN YEOJIDO</p>
+
+      {/* 환영 문구 — 지역 활용 */}
+      <h1 style={{ fontFamily: FONT_BRAND, fontSize: '38px', lineHeight: 1.3, color: '#800020', wordBreak: 'keep-all', margin: 0 }}>
+        {region}에서 오신 걸<br />환영해요
+      </h1>
+
+      {/* 리드 문장 */}
+      <p style={{ fontFamily: FONT_UI, fontSize: '14px', lineHeight: 2, color: '#8A8480', wordBreak: 'keep-all', maxWidth: '360px', marginTop: '20px' }}>
+        여기, 우리가 머물렀던 담백한 순간들이 지도가 되어 있어요. 천천히 둘러보세요.
+      </p>
+
+      {/* CTA — 지도로 진입 */}
+      <button
+        onClick={onEnter}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: '22px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: '15px 40px', marginTop: '40px', cursor: 'pointer', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)', transition: 'all 0.2s ease' }}
+      >
+        낭만 지도 보러가기
+        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
+        </svg>
+      </button>
+
+      {/* 다시 고르기 */}
+      <button onClick={onBack} style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', background: 'transparent', cursor: 'pointer', marginTop: '18px', padding: '6px 10px' }}>
+        다시 고르기
+      </button>
     </div>
   )
 }
