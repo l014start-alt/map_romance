@@ -4,9 +4,9 @@ const FONT_UI = 'var(--font-sans)'
 const FONT_SERIF = 'var(--font-serif)'
 
 /* ══════════════════════════════════════════════════════════
-   변경: 하단 '낭만젊음사랑' 정보를 좌우 2단으로 분할
-   - 좌측 열: 상호명 + 주소
-   - 우측 열: 나머지 정보(슬로건 · 카피라이트 · 링크) — 우측 정렬
+   변경: 하단 2단 좌/우 위치 교체
+   - 좌측 열: 나머지 정보(슬로건 · 카피라이트 · 링크) — 좌측 정렬
+   - 우측 열: 상호명(낭만젊음사랑) + 주소 — 우측 정렬
    - justify-content: space-between 으로 남는 공간을 좌우로 배분
    ══════════════════════════════════════════════════════════ */
 export default function Footer() {
@@ -21,18 +21,8 @@ export default function Footer() {
         flexWrap: 'wrap',                // 좁은 화면에서는 자동 줄바꿈
       }}
     >
-      {/* ── 좌측 열 — 상호명 + 주소 ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
-        <p style={{ fontFamily: FONT_SERIF, fontSize: '16px', fontWeight: 700, color: '#2A2520', letterSpacing: '0.04em' }}>
-          낭만젊음사랑
-        </p>
-        <p style={{ fontFamily: FONT_UI, fontSize: '9px', color: '#C8C4C0', lineHeight: '1.9', letterSpacing: '0.02em' }}>
-          대구 중구 국채보상로 634 2층
-        </p>
-      </div>
-
-      {/* ── 우측 열 — 슬로건 · 카피라이트 · 유틸 링크 (우측 정렬) ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end', textAlign: 'right' }}>
+      {/* ── 좌측 열 — 슬로건 · 카피라이트 · 유틸 링크 (좌측 정렬) ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start', textAlign: 'left' }}>
         {/* 슬로건 */}
         <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#B5B0AB', lineHeight: '1.9', wordBreak: 'keep-all', maxWidth: '260px' }}>
           우리가 머물렀던 담백한 순간들이 지도가 됩니다.
@@ -50,6 +40,16 @@ export default function Footer() {
             관리자
           </Link>
         </div>
+      </div>
+
+      {/* ── 우측 열 — 상호명 + 주소 (우측 정렬) ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, alignItems: 'flex-end', textAlign: 'right' }}>
+        <p style={{ fontFamily: FONT_SERIF, fontSize: '16px', fontWeight: 700, color: '#2A2520', letterSpacing: '0.04em' }}>
+          낭만젊음사랑
+        </p>
+        <p style={{ fontFamily: FONT_UI, fontSize: '9px', color: '#C8C4C0', lineHeight: '1.9', letterSpacing: '0.02em' }}>
+          대구 중구 국채보상로 634 2층
+        </p>
       </div>
     </footer>
   )
