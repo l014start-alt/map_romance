@@ -809,7 +809,9 @@ function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: str
 
       {/* 리드 문장 */}
       <p style={{ fontFamily: FONT_UI, fontSize: '14px', lineHeight: 2, color: '#8A8480', wordBreak: 'keep-all', maxWidth: '360px', marginTop: '20px' }}>
-        여기, 우리가 머물렀던 이야기들이 지도가 되어 있어요. 천천히 둘러보세요.
+        여기, 우리가 머물렀던 이야기들이 지도가 되어 있어요.
+        <br />
+        천천히 둘러보세요.
       </p>
 
       {/* CTA — 지도로 진입 */}
