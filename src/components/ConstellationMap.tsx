@@ -37,7 +37,7 @@ interface Node {
 const VB = 1000                     // viewBox 한 변
 const PAD = 130                     // 투영 여백
 
-export default function ConstellationMap() {
+export default function ConstellationMap({ embedded = false }: { embedded?: boolean } = {}) {
   const [spots, setSpots]     = useState<Spot[]>(MOCK_SPOTS)
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover]       = useState<string | null>(null)
@@ -147,20 +147,28 @@ export default function ConstellationMap() {
   return (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden', background: '#FAF8F5', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── 상단 헤더 : 뒤로 + 타이틀 + 원형 게이지 ── */}
-      <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px', zIndex: 5 }}>
-        <div>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#8A8480' }}>
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
-            돌아가기
-          </Link>
-          <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#800020', lineHeight: 1.1, marginTop: '8px' }}>낭만 별자리 지도</p>
-          <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', marginTop: '4px', letterSpacing: '0.02em' }}>
-            우리가 머문 자리를 선으로 이어봅니다 · 장소 {nodes.length}곳
-          </p>
+      {/* ── 상단 헤더 : 뒤로 + 타이틀 + 원형 게이지 ──
+           embedded(다른 페이지 안에 삽입) 일 때는 자체 헤더를 숨기고,
+           게이지만 우측 상단에 작게 띄운다 (부모가 헤더/토글을 제공). */}
+      {embedded ? (
+        <div style={{ position: 'absolute', top: '14px', right: '18px', zIndex: 6 }}>
+          <Gauge count={nodes.length} />
         </div>
-        <Gauge count={nodes.length} />
-      </header>
+      ) : (
+        <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px', zIndex: 5 }}>
+          <div>
+            <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#8A8480' }}>
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
+              돌아가기
+            </Link>
+            <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#800020', lineHeight: 1.1, marginTop: '8px' }}>낭만 별자리 지도</p>
+            <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', marginTop: '4px', letterSpacing: '0.02em' }}>
+              우리가 머문 자리를 선으로 이어봅니다 · 장소 {nodes.length}곳
+            </p>
+          </div>
+          <Gauge count={nodes.length} />
+        </header>
+      )}
 
       {/* ── 별자리 SVG ── */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>

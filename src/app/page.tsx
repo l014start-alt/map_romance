@@ -9,13 +9,16 @@ import PlacePreviewCard from '@/components/PlacePreviewCard'
 import SpotSheet from '@/components/SpotSheet'
 import FeedView from '@/components/FeedView'
 import Footer from '@/components/Footer'
+import PostcardReader from '@/components/PostcardReader'   // 엽서 리더(사연 한 장씩)
+import ConstellationMap from '@/components/ConstellationMap' // 별자리 지도(지도로 보기)
 import { Spot, Category, LocationGroup } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
 import { saveVisitorSelection } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
 
 const LeafletMap = dynamic(() => import('@/components/NaverMap'), { ssr: false })
 
-type View = 'landing' | 'intro' | 'map'   // intro: 입장 직후 환영 인트로(2단계)
+type View = 'landing' | 'intro' | 'read' | 'map'  // read: 새 두번째 페이지(엽서/별자리)
+type SecondView = 'read' | 'constellation'        // 엽서 리더 ↔ 별자리 지도 토글
 type Tab  = 'map' | 'feed'
 type RecordPhase = 'idle' | 'picking' | 'preview' | 'form'
 type Filter = 'all' | Category
@@ -83,6 +86,8 @@ export default function App() {
 
   // 요구사항 2: 입장 시 선택한 캐릭터/지역 (헤더 뱃지 표시용)
   const [visitor, setVisitor]     = useState<{ characterId: string; region: string } | null>(null)
+  // 새 두번째 페이지 모드: 엽서 리더 ↔ 별자리 지도
+  const [secondView, setSecondView] = useState<SecondView>('read')
 
   const isDesktop = useIsDesktop()
 
@@ -138,6 +143,13 @@ export default function App() {
     saveVisitorSelection(characterId, region) // 요구사항 3: LocalStorage 통계 저장(+백엔드 훅)
     transition(() => setView('intro'))         // D안: 곧장 지도가 아니라 환영 인트로부터
   }
+
+  /* ── 인트로 → 새 두번째 페이지(엽서 리더) 진입 ── */
+  const goSecond = () => transition(() => {
+    setSelectedRegion(DAEGU)
+    setSecondView('read')
+    setView('read')
+  })
   const goBack = () => transition(() => {
     setView('landing'); setActiveGroupKey(null)
     setPhase('idle'); setPin(null)
@@ -360,14 +372,84 @@ export default function App() {
         <EntryIntro
           characterId={visitor.characterId}
           region={visitor.region}
-          onEnter={() => goMap(DAEGU)}   // 버튼 → 지도(두 번째 페이지)로 진입
-          onBack={goBack}                // 다시 고르기 → 랜딩
+          onEnter={goSecond}   // 버튼 → 새 두번째 페이지(엽서 리더)로 진입
+          onBack={goBack}      // 다시 고르기 → 랜딩
         />
       </div>
     )
   }
 
-  /* ════════ MAP VIEW ════════ */
+  /* ════════ SECOND PAGE — 엽서 리더 + 별자리 지도 토글 (새 구성) ════════ */
+  if (view === 'read') {
+    const readerSpots = [...filteredSpots].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const isRead = secondView === 'read'
+    const segBtn = (active: boolean): React.CSSProperties => ({
+      fontFamily: FONT_UI, fontSize: '12px', letterSpacing: '0.04em', padding: '7px 16px', borderRadius: '99px', cursor: 'pointer',
+      background: active ? '#800020' : 'transparent', color: active ? '#FAF8F5' : '#8A8480', fontWeight: active ? 500 : 400, transition: 'all 0.16s',
+    })
+    return (
+      <div style={{ ...pageStyle, position: 'relative', background: '#FAF8F5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* 헤더 */}
+        <header style={{ flexShrink: 0, borderBottom: '1px solid #EDE9E4', background: '#FAF8F5', zIndex: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', padding: isDesktop ? '16px 32px' : '12px 16px' }}>
+            {/* 좌 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '18px' : '10px', minWidth: 0 }}>
+              <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#6B6560', cursor: 'pointer', flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
+                {isDesktop ? '지역 선택' : ''}
+              </button>
+              <span style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '26px' : '19px', color: '#800020', lineHeight: 1 }}>낭만여지도</span>
+              {isDesktop && visitor && <VisitorBadge characterId={visitor.characterId} region={visitor.region} />}
+            </div>
+            {/* 우 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '14px' : '8px', flexShrink: 0 }}>
+              {/* 엽서 ↔ 지도 토글 */}
+              <div style={{ display: 'flex', gap: '2px', background: '#F2EEE9', borderRadius: '99px', padding: '3px' }}>
+                <button onClick={() => setSecondView('read')} style={segBtn(isRead)}>엽서</button>
+                <button onClick={() => setSecondView('constellation')} style={segBtn(!isRead)}>지도</button>
+              </div>
+              {/* 기록하기 */}
+              <button onClick={startPicking} style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '17px' : '0', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: isDesktop ? '9px 20px' : '9px', borderRadius: isDesktop ? '10px' : '50%', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(128,0,32,0.22)', cursor: 'pointer', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
+                {isDesktop ? '낭만 기록하기' : ''}
+              </button>
+            </div>
+          </div>
+          {/* 카테고리 필터 (엽서 모드에서만) */}
+          {isRead && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', padding: '0 16px 12px' }}>
+              {FILTER_LABELS.map(f => (
+                <button key={f} onClick={() => setFilter(f)} style={{ fontFamily: FONT_UI, fontSize: '12px', cursor: 'pointer', padding: '6px 14px', borderRadius: '99px', background: filter === f ? '#FBEDED' : 'transparent', color: filter === f ? '#800020' : '#B5B0AB', fontWeight: filter === f ? 500 : 400, transition: 'all 0.16s' }}>
+                  {FILTER_KR[f]}
+                </button>
+              ))}
+            </div>
+          )}
+        </header>
+
+        {/* 본문 */}
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+          {isRead
+            ? <PostcardReader spots={readerSpots} />
+            : <ConstellationMap embedded />}
+        </div>
+
+        {/* 기록 오버레이 — 검색 기반(지도 불필요), 데스크탑/모바일 공용 */}
+        {phase === 'picking' && (
+          <LocationPicker desktop pin={pin} onPinUpdate={handlePinUpdate} onMapFlyTo={handleMapFlyTo} onConfirm={confirmPin} onCancel={closeRecord} />
+        )}
+        {phase === 'preview' && pin && (
+          <PlacePreviewCard desktop pin={pin} onConfirm={confirmPreview} onReselect={reselectPin} />
+        )}
+        {phase === 'form' && (
+          <RecordModal pin={pin} desktop onClose={closeRecord} onSubmit={handleSubmit} />
+        )}
+      </div>
+    )
+  }
+
+  /* ════════ MAP VIEW (구버전 — 현재 흐름에서는 진입하지 않음, 참고/폴백용) ════════ */
   const mapCenter = mapFlyTarget?.center ?? (selectedRegion ? [selectedRegion.lat, selectedRegion.lng] as [number, number] : undefined)
   const mapZoom   = mapFlyTarget?.zoom   ?? selectedRegion?.zoom
 
@@ -727,7 +809,7 @@ function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: str
 
       {/* 리드 문장 */}
       <p style={{ fontFamily: FONT_UI, fontSize: '14px', lineHeight: 2, color: '#8A8480', wordBreak: 'keep-all', maxWidth: '360px', marginTop: '20px' }}>
-        여기, 우리가 머물렀던 담백한 순간들이 지도가 되어 있어요. 천천히 둘러보세요.
+        여기, 우리가 머물렀던 이야기들이 지도가 되어 있어요. 천천히 둘러보세요.
       </p>
 
       {/* CTA — 지도로 진입 */}
@@ -736,7 +818,7 @@ function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: str
         onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
         style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: '22px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: '15px 40px', marginTop: '40px', cursor: 'pointer', transform: hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)', transition: 'all 0.2s ease' }}
       >
-        낭만 지도 보러가기
+        낭만여지도 보러가기
         <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
         </svg>
