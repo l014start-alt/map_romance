@@ -12,25 +12,69 @@ import { Spot } from '@/types'
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_UI    = 'var(--font-sans)'
 
-/* 타자기 효과 — text를 한 글자씩 출력. text가 바뀌면 처음부터 다시. */
-function TypedText({ text, speed = 24 }: { text: string; speed?: number }) {
-  const [n, setN] = useState(0)
+/* 깜빡이는 커서 */
+function Caret() {
+  return <span className="tw-cursor" aria-hidden="true">│</span>
+}
+
+/* 타자기 효과 — 제목 → (글쓴이 등장) → 본문 순서로 한 글자씩.
+   실제 타자 느낌: 글자마다 속도가 살짝 다르고, 문장부호/줄바꿈에서 잠깐 멈춤.
+   사연이 바뀌면(부모 key 변경) 처음부터 다시 타이핑. */
+function TypedStory({ title, nickname, body }: { title: string; nickname: string; body: string }) {
+  const [tN, setTN] = useState(0)
+  const [bN, setBN] = useState(0)
+  const [phase, setPhase] = useState<'title' | 'body' | 'done'>(title ? 'title' : 'body')
+
   useEffect(() => {
-    setN(0)
-    if (!text) return
-    let i = 0
-    const id = setInterval(() => {
-      i += 1
-      setN(i)
-      if (i >= text.length) clearInterval(id)
-    }, speed)
-    return () => clearInterval(id)
-  }, [text, speed])
-  const done = n >= text.length
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+    let ti = 0, bi = 0
+    setTN(0); setBN(0); setPhase(title ? 'title' : 'body')
+
+    // 글자별 지연 — 기본값 + 랜덤 흔들림, 문장부호에서 더 오래 쉼
+    const jitter = (base: number) => base + Math.random() * 55
+    const delayFor = (ch: string, base: number) => {
+      if (ch === '\n') return base * 6
+      if ('.!?…'.includes(ch)) return base * 8
+      if (',·'.includes(ch)) return base * 3.5
+      if (ch === ' ') return base * 1.5
+      return jitter(base)
+    }
+    const TITLE_SPD = 95, BODY_SPD = 55
+
+    const typeBody = () => {
+      if (cancelled) return
+      if (bi >= body.length) { setPhase('done'); return }
+      const ch = body[bi]; bi += 1; setBN(bi)
+      timer = setTimeout(typeBody, delayFor(ch, BODY_SPD))
+    }
+    const typeTitle = () => {
+      if (cancelled) return
+      if (ti >= title.length) { setPhase('body'); timer = setTimeout(typeBody, 450); return }
+      const ch = title[ti]; ti += 1; setTN(ti)
+      timer = setTimeout(typeTitle, delayFor(ch, TITLE_SPD))
+    }
+
+    timer = setTimeout(title ? typeTitle : typeBody, 320)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [title, body])
+
   return (
     <>
-      {text.slice(0, n)}
-      {!done && <span className="tw-cursor" aria-hidden="true">│</span>}
+      {/* 제목 */}
+      {title && (
+        <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#111', lineHeight: 1.3, marginBottom: '6px', wordBreak: 'keep-all', minHeight: '1.3em' }}>
+          {title.slice(0, tN)}{phase === 'title' && <Caret />}
+        </p>
+      )}
+      {/* 글쓴이 — 제목이 다 써진 뒤 등장 */}
+      <p style={{ fontFamily: FONT_BRAND, fontSize: '15px', color: '#B5B0AB', marginBottom: '22px', letterSpacing: '0.02em', opacity: phase === 'title' ? 0 : 1, transition: 'opacity 0.5s' }}>
+        by {nickname}
+      </p>
+      {/* 본문 */}
+      <p style={{ fontFamily: FONT_UI, fontSize: '15px', color: '#2A2520', lineHeight: 2.05, wordBreak: 'keep-all', whiteSpace: 'pre-line', minHeight: '4.1em' }}>
+        {body.slice(0, bN)}{phase === 'body' && <Caret />}
+      </p>
     </>
   )
 }
@@ -99,17 +143,8 @@ export default function PostcardReader({ spots }: { spots: Spot[] }) {
             <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0BEBB', letterSpacing: '0.06em' }}>{formatDate(spot.createdAt)}</span>
           </div>
 
-          {/* 제목 */}
-          {spot.title && (
-            <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#111', lineHeight: 1.3, marginBottom: '6px', wordBreak: 'keep-all' }}>{spot.title}</p>
-          )}
-          {/* 글쓴이 */}
-          <p style={{ fontFamily: FONT_BRAND, fontSize: '15px', color: '#B5B0AB', marginBottom: '22px', letterSpacing: '0.02em' }}>by {spot.nickname || '익명'}</p>
-
-          {/* 본문 — 타자 치듯 한 글자씩 (사연이 바뀌면 다시 타이핑) */}
-          <p style={{ fontFamily: FONT_UI, fontSize: '15px', color: '#2A2520', lineHeight: 2.05, wordBreak: 'keep-all', whiteSpace: 'pre-line', minHeight: '4.1em' }}>
-            <TypedText text={spot.moment} />
-          </p>
+          {/* 제목 → 본문 순서로 타자기 효과 (사연이 바뀌면 처음부터) */}
+          <TypedStory key={spot.id} title={spot.title ?? ''} nickname={spot.nickname || '익명'} body={spot.moment} />
 
           {/* 장소 */}
           <a href={naverUrl} target="_blank" rel="noopener noreferrer"
