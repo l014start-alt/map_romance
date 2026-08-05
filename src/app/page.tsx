@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import RecordModal from '@/components/RecordModal'
@@ -288,9 +288,10 @@ export default function App() {
   /* ════════ LANDING VIEW — 데스크탑 (좌우 분할) ════════ */
   if (view === 'landing' && isDesktop) {
     return (
-      <div style={{ ...pageStyle, background: '#FAF8F5', display: 'flex', overflow: 'hidden' }}>
+      // position:relative — 우측 하단 밀착 Footer의 기준 컨테이너
+      <div style={{ ...pageStyle, position: 'relative', background: '#FAF8F5', display: 'flex', overflow: 'hidden' }}>
 
-        {/* 좌측 — 히어로 일러스트 */}
+        {/* 좌측 — 히어로 일러스트 (상단 선은 이미지 파일에서 제거 완료) */}
         <div style={{ width: '46%', minWidth: '420px', maxWidth: '760px', height: '100%', background: '#FAF8F5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px', borderRight: '1px solid #EDE9E4' }}>
           <Image
             src="/hero-map.png"
@@ -302,12 +303,14 @@ export default function App() {
           />
         </div>
 
-        {/* 우측 — 지역 선택 + 푸터 */}
-        <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 56px' }}>
-            <DaeguStart onStart={() => goMap(DAEGU)} desktop />
-          </div>
-          <Footer />
+        {/* 우측 — 캐릭터/지역 선택 입장 게이트 (하단 padding으로 Footer와 겹침 방지) */}
+        <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 56px 120px' }}>
+          <EntryGate onStart={() => goMap(DAEGU)} desktop />
+        </div>
+
+        {/* 변경: '낭만젊음사랑' 소개글을 화면 우측 하단으로 밀착 배치 */}
+        <div style={{ position: 'absolute', right: 0, bottom: 0, zIndex: 5 }}>
+          <Footer align="right" />
         </div>
       </div>
     )
@@ -318,7 +321,7 @@ export default function App() {
     return (
       <div style={{ ...pageStyle, background: '#FAF8F5', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
-        {/* 히어로 섹션 — 전체 일러스트 이미지 */}
+        {/* 히어로 섹션 — 전체 일러스트 이미지 (상단 선은 이미지 파일에서 제거 완료) */}
         <div style={{ width: '100%' }}>
           <Image
             src="/hero-map.png"
@@ -330,11 +333,13 @@ export default function App() {
           />
         </div>
 
-        {/* 대구 시작 섹션 */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '36px 20px 56px' }}>
-          <DaeguStart onStart={() => goMap(DAEGU)} />
+        {/* 입장 게이트 — 캐릭터/지역 선택 */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '28px 20px 40px' }}>
+          <EntryGate onStart={() => goMap(DAEGU)} />
         </div>
-        <Footer />
+
+        {/* 변경: 소개글을 우측 하단으로 밀착(우측 정렬) */}
+        <Footer align="right" />
       </div>
     )
   }
@@ -609,121 +614,108 @@ export default function App() {
   )
 }
 
-/* ── 입장 포토부스 (카메라) ── */
-function CameraBooth({ desktop = false, onCaptured }: { desktop?: boolean; onCaptured?: (has: boolean) => void }) {
-  const videoRef  = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const [photo, setPhoto]   = useState<string | null>(null)
-  const [status, setStatus] = useState<'loading' | 'on' | 'error'>('loading')
+/* ══════════════════════════════════════════════════════════
+   변경: 입장 사진 촬영(CameraBooth/DaeguStart) 기능 삭제
+   → 캐릭터 선택 + 출신 지역 선택 후 '입장하기' 게이트로 교체
+   ══════════════════════════════════════════════════════════ */
 
-  useEffect(() => { onCaptured?.(photo !== null) }, [photo, onCaptured])
+/* 선택 가능한 캐릭터 (public 폴더의 PNG 아이콘 재사용) */
+const CHARACTERS: { id: string; name: string; src: string }[] = [
+  { id: 'star',   name: '별',    src: '/별.png' },
+  { id: 'sun',    name: '태양',  src: '/태양.png' },
+  { id: 'bolt',   name: '번개',  src: '/번개.png' },
+  { id: 'rain',   name: '빗방울', src: '/빗방울.png' },
+  { id: 'coffee', name: '커피',  src: '/커피컵.png' },
+  { id: 'beer',   name: '맥주',  src: '/맥주.png' },
+  { id: 'house',  name: '나무집', src: '/나무_집.png' },
+]
 
-  useEffect(() => {
-    let cancelled = false
-    async function start() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
-        streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play().catch(() => {})
-        }
-        setStatus('on')
-      } catch {
-        setStatus('error')
-      }
-    }
-    start()
-    return () => { cancelled = true; streamRef.current?.getTracks().forEach(t => t.stop()) }
-  }, [])
+/* 어느 지역에서 왔는지 — 출신 지역 목록 */
+const ORIGINS = ['서울', '경기·인천', '강원', '충청', '대구·경북', '부산·경남', '광주·전라', '제주']
 
-  const capture = () => {
-    const v = videoRef.current
-    if (!v || !v.videoWidth) return
-    const canvas = document.createElement('canvas')
-    canvas.width = v.videoWidth
-    canvas.height = v.videoHeight
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.translate(canvas.width, 0); ctx.scale(-1, 1)   // 거울 반전 보정
-    ctx.drawImage(v, 0, 0)
-    setPhoto(canvas.toDataURL('image/jpeg', 0.9))
-  }
-  const save = () => {
-    if (!photo) return
-    const a = document.createElement('a')
-    a.href = photo
-    a.download = `낭만여지도_${Date.now()}.jpg`
-    a.click()
-  }
+const VISITOR_KEY = 'map_romance_visitor'
 
-  const btnBase: React.CSSProperties = { fontFamily: FONT_UI, fontSize: '13px', letterSpacing: '0.04em', padding: '11px 24px', borderRadius: '99px', cursor: 'pointer', transition: 'all 0.18s' }
-
+/* 단계 라벨 (①/② 스텝 표시) */
+function StepLabel({ n, text }: { n: number; text: string }) {
   return (
-    <div style={{ width: desktop ? '440px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-      <div style={{ width: '100%', aspectRatio: '4/3', borderRadius: '18px', overflow: 'hidden', background: '#2A2520', position: 'relative', border: '3px solid #800020', boxShadow: '0 8px 30px rgba(128,0,32,0.14)' }}>
-        {photo ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={photo} alt="촬영한 사진" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        ) : (
-          <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transform: 'scaleX(-1)' }} />
-        )}
-        {status !== 'on' && !photo && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#FAF8F5', textAlign: 'center', padding: '20px' }}>
-            <span style={{ fontSize: '30px' }}>📷</span>
-            <span style={{ fontFamily: FONT_UI, fontSize: '12px', lineHeight: 1.6, opacity: 0.85, whiteSpace: 'pre-line' }}>
-              {status === 'loading' ? '카메라를 켜는 중…' : '카메라를 사용할 수 없어요.\n권한을 허용했는지 확인해주세요.'}
-            </span>
-          </div>
-        )}
-        <span style={{ position: 'absolute', left: '14px', bottom: '12px', fontFamily: FONT_BRAND, fontSize: '20px', color: 'rgba(250,248,245,0.92)', textShadow: '0 1px 6px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>낭만여지도</span>
-      </div>
-
-      {photo ? (
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setPhoto(null)} style={{ ...btnBase, background: 'transparent', border: '1px solid #DED9D3', color: '#8A8480' }}>다시 찍기</button>
-          <button onClick={save} style={{ ...btnBase, background: '#800020', color: '#FAF8F5', border: '1px solid #800020' }}>사진 저장</button>
-        </div>
-      ) : (
-        <button onClick={capture} disabled={status !== 'on'} style={{ ...btnBase, background: status === 'on' ? '#2A2520' : '#EDE9E4', color: status === 'on' ? '#FAF8F5' : '#C0BEBB', border: 'none', cursor: status === 'on' ? 'pointer' : 'default' }}>
-          📸 사진 찍기
-        </button>
-      )}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#800020', color: '#FAF8F5', fontFamily: FONT_UI, fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{n}</span>
+      <span style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#2A2520', letterSpacing: '0.02em' }}>{text}</span>
     </div>
   )
 }
 
-/* ── 입장 CTA (포토부스 + 입장 버튼) — 사진을 찍어야 입장 가능 ── */
-function DaeguStart({ onStart, desktop = false }: { onStart: () => void; desktop?: boolean }) {
-  const [hovered, setHovered] = useState(false)
-  const [captured, setCaptured] = useState(false)
+/* ── 입장 게이트 — 캐릭터 + 지역을 모두 선택해야 입장 버튼 활성화 ── */
+function EntryGate({ onStart, desktop = false }: { onStart: () => void; desktop?: boolean }) {
+  const [character, setCharacter] = useState<string | null>(null)   // 선택한 캐릭터 id
+  const [origin, setOrigin]       = useState<string | null>(null)   // 선택한 출신 지역
+  const [hovered, setHovered]     = useState(false)
+  const ready = character !== null && origin !== null               // 둘 다 선택해야 입장 가능
+
+  const enter = () => {
+    if (!ready) return
+    // 선택 정보 저장(추후 활용용) 후 입장
+    try { localStorage.setItem(VISITOR_KEY, JSON.stringify({ character, origin })) } catch { /* ignore */ }
+    onStart()
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: desktop ? '22px' : '18px' }}>
-      <CameraBooth desktop={desktop} onCaptured={setCaptured} />
+    <div style={{ width: desktop ? '460px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: desktop ? '30px' : '26px' }}>
 
-      <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.04em', color: captured ? '#2A6040' : '#C0BEBB', transition: 'color 0.2s', wordBreak: 'keep-all', textAlign: 'center' }}>
-        {captured ? '준비됐어요! 이제 입장할 수 있어요' : '입장하려면 먼저 사진을 찍어주세요'}
-      </p>
+      {/* STEP 1 — 캐릭터 선택 */}
+      <section>
+        <StepLabel n={1} text="나의 캐릭터를 골라주세요" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '14px' }}>
+          {CHARACTERS.map(c => {
+            const on = character === c.id
+            return (
+              <button key={c.id} onClick={() => setCharacter(c.id)} title={c.name}
+                style={{ aspectRatio: '1 / 1', borderRadius: '14px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#FFF5F5' : '#FFFFFF', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: 'pointer', boxShadow: on ? '0 4px 14px rgba(128,0,32,0.16)' : 'none', transform: on ? 'translateY(-2px)' : 'translateY(0)', transition: 'all 0.16s' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.src} alt={c.name} style={{ width: '54%', height: '54%', objectFit: 'contain' }} />
+                <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: on ? '#800020' : '#B5B0AB' }}>{c.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
 
-      <button
-        onClick={() => { if (captured) onStart() }}
-        disabled={!captured}
-        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '20px', letterSpacing: '0.04em', color: captured ? '#FAF8F5' : '#C0BEBB', background: captured ? '#800020' : '#EDE9E4', padding: desktop ? '16px 48px' : '15px 40px', cursor: captured ? 'pointer' : 'not-allowed', transform: captured && hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: captured ? (hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)') : 'none', transition: 'all 0.2s ease' }}
-      >
-        {!captured && (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
-        )}
-        낭만여지도 입장하기
-        {captured && (
-          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
-          </svg>
-        )}
-      </button>
+      {/* STEP 2 — 출신 지역 선택 */}
+      <section>
+        <StepLabel n={2} text="어느 지역에서 오셨나요?" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '14px' }}>
+          {ORIGINS.map(o => {
+            const on = origin === o
+            return (
+              <button key={o} onClick={() => setOrigin(o)}
+                style={{ fontFamily: FONT_UI, fontSize: '13px', padding: '9px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#800020' : '#FFFFFF', color: on ? '#FAF8F5' : '#8A8480', fontWeight: on ? 500 : 400, cursor: 'pointer', transition: 'all 0.16s' }}>
+                {o}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* 안내 문구 + 입장 버튼 (둘 다 선택해야 활성화) */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', marginTop: '4px' }}>
+        <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.04em', color: ready ? '#2A6040' : '#C0BEBB', transition: 'color 0.2s', wordBreak: 'keep-all', textAlign: 'center' }}>
+          {ready ? '준비됐어요! 이제 입장할 수 있어요' : '캐릭터와 지역을 모두 선택해주세요'}
+        </p>
+
+        <button
+          onClick={enter}
+          disabled={!ready}
+          onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '20px', letterSpacing: '0.04em', color: ready ? '#FAF8F5' : '#C0BEBB', background: ready ? '#800020' : '#EDE9E4', padding: desktop ? '16px 48px' : '15px 40px', cursor: ready ? 'pointer' : 'not-allowed', transform: ready && hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: ready ? (hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)') : 'none', transition: 'all 0.2s ease' }}
+        >
+          낭만여지도 입장하기
+          {ready && (
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
+            </svg>
+          )}
+        </button>
+      </div>
     </div>
   )
 }

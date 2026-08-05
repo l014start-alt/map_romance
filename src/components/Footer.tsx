@@ -3,9 +3,11 @@ import Link from 'next/link'
 const FONT_UI = 'var(--font-sans)'
 const FONT_SERIF = 'var(--font-serif)'
 
-export default function Footer() {
+// 변경: align prop 추가 — 'right'이면 소개글을 우측 정렬(우측 하단 밀착용)
+export default function Footer({ align = 'left' }: { align?: 'left' | 'right' }) {
+  const right = align === 'right'
   return (
-    <footer style={{ padding: '40px 24px 36px' }}>
+    <footer style={{ padding: '40px 24px 36px', textAlign: right ? 'right' : 'left' }}>
       {/* 브랜드명 — 명조 세리프 */}
       <p
         style={{
@@ -55,6 +57,7 @@ export default function Footer() {
           display: 'flex',
           gap: '16px',
           marginTop: '20px',
+          justifyContent: right ? 'flex-end' : 'flex-start',
         }}
       >
         <Link
