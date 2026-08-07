@@ -79,6 +79,10 @@ body {
   50%      { opacity: 0.12; r: 22; }
 }
 
+/* ── 별자리(우주) 지도: 별 반짝임 ── */
+@keyframes star-twinkle { 0%, 100% { opacity: 0.22; } 50% { opacity: 0.95; } }
+.star-tw { animation: star-twinkle 3.4s ease-in-out infinite; }
+
 /* ── 타자기 효과: 본문 뒤 깜빡이는 커서 ── */
 @keyframes tw-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .tw-cursor {

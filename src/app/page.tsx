@@ -387,19 +387,20 @@ export default function App() {
       fontFamily: FONT_UI, fontSize: '12px', letterSpacing: '0.04em', padding: '7px 16px', borderRadius: '99px', cursor: 'pointer',
       background: active ? '#800020' : 'transparent', color: active ? '#FAF8F5' : '#8A8480', fontWeight: active ? 500 : 400, transition: 'all 0.16s',
     })
+    const dark = secondView === 'constellation'  // 별자리(우주) 모드일 때 헤더/배경도 어둡게
     return (
-      <div style={{ ...pageStyle, position: 'relative', background: '#FAF8F5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ ...pageStyle, position: 'relative', background: dark ? '#0d0b1e' : '#FAF8F5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* 헤더 */}
-        <header style={{ flexShrink: 0, borderBottom: '1px solid #EDE9E4', background: '#FAF8F5', zIndex: 10 }}>
+        <header style={{ flexShrink: 0, borderBottom: dark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #EDE9E4', background: dark ? '#141130' : '#FAF8F5', zIndex: 10, transition: 'background 0.3s, border-color 0.3s' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', padding: isDesktop ? '16px 32px' : '12px 16px' }}>
             {/* 좌 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '18px' : '10px', minWidth: 0 }}>
-              <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#6B6560', cursor: 'pointer', flexShrink: 0 }}>
+              <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: dark ? 'rgba(233,231,247,0.7)' : '#6B6560', cursor: 'pointer', flexShrink: 0 }}>
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
                 {isDesktop ? '지역 선택' : ''}
               </button>
-              <span style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '26px' : '19px', color: '#800020', lineHeight: 1 }}>낭만여지도</span>
+              <span style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '26px' : '19px', color: dark ? '#F4D58A' : '#800020', lineHeight: 1 }}>낭만여지도</span>
               {isDesktop && visitor && <VisitorBadge characterId={visitor.characterId} region={visitor.region} />}
             </div>
             {/* 우 */}
