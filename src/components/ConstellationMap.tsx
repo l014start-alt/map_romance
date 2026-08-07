@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Spot, Category } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
+import { DAEGU_MAP } from '@/lib/daeguMap' // 간소화한 대구 자치구 경계(배경 지도)
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_SERIF = 'var(--font-serif)'
@@ -27,7 +28,6 @@ interface Node {
 }
 
 const VB = 1000
-const PAD = 130
 
 /* 결정적 난수 (별 배치가 렌더마다 안 바뀌게) */
 function mulberry32(a: number) {
@@ -39,7 +39,7 @@ function mulberry32(a: number) {
   }
 }
 
-export default function ConstellationMap({ embedded = false }: { embedded?: boolean } = {}) {
+export default function ConstellationMap({ embedded = false, onOpenStories }: { embedded?: boolean; onOpenStories?: (placeName: string) => void } = {}) {
   const [spots, setSpots]       = useState<Spot[]>(MOCK_SPOTS)
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover]       = useState<string | null>(null)
@@ -65,21 +65,18 @@ export default function ConstellationMap({ embedded = false }: { embedded?: bool
     const raw = Array.from(map.values())
     if (raw.length === 0) return { nodes: [] as Node[], edges: [] as { a: string; b: string; key: string }[] }
 
-    const lats = raw.map(r => r.lat), lngs = raw.map(r => r.lng)
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
-    const spanLat = Math.max(maxLat - minLat, 0.0001)
-    const spanLng = Math.max(maxLng - minLng, 0.0001)
-    const px = (lng: number) => PAD + ((lng - minLng) / spanLng) * (VB - PAD * 2)
-    const py = (lat: number) => PAD + (1 - (lat - minLat) / spanLat) * (VB - PAD * 2)
+    // 배경 지도와 동일한 선형 투영 → 노드가 실제 대구 자치구 위에 놓임
+    const px = (lng: number) => DAEGU_MAP.A * lng + DAEGU_MAP.B
+    const py = (lat: number) => DAEGU_MAP.C * lat + DAEGU_MAP.D
 
     const nodes: Node[] = raw.map(r => ({
       key: r.placeName, placeName: r.placeName, lat: r.lat, lng: r.lng,
       x: px(r.lng), y: py(r.lat), categories: Array.from(r.cats), count: r.count, links: 0,
     }))
 
-    const MIN_DIST = 150
-    for (let iter = 0; iter < 80; iter++) {
+    // 라벨이 겹치는 아주 가까운 곳만 살짝 벌림(지도 정렬은 최대한 유지)
+    const MIN_DIST = 128, MARGIN = 60
+    for (let iter = 0; iter < 60; iter++) {
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i], b = nodes[j]
@@ -93,8 +90,8 @@ export default function ConstellationMap({ embedded = false }: { embedded?: bool
         }
       }
       for (const n of nodes) {
-        n.x = Math.max(PAD, Math.min(VB - PAD, n.x))
-        n.y = Math.max(PAD, Math.min(VB - PAD, n.y))
+        n.x = Math.max(MARGIN, Math.min(VB - MARGIN, n.x))
+        n.y = Math.max(MARGIN, Math.min(VB - MARGIN, n.y))
       }
     }
 
@@ -133,14 +130,6 @@ export default function ConstellationMap({ embedded = false }: { embedded?: bool
       })
     }
     return arr
-  }, [])
-
-  /* 지도 격자(그래티큘) */
-  const grid = useMemo(() => {
-    const v: number[] = [], h: number[] = []
-    for (let x = -600; x <= 1600; x += 110) v.push(x)
-    for (let y = -300; y <= 1300; y += 110) h.push(y)
-    return { v, h }
   }, [])
 
   const nodeByKey = useMemo(() => new Map(nodes.map(n => [n.key, n])), [nodes])
@@ -209,10 +198,10 @@ export default function ConstellationMap({ embedded = false }: { embedded?: bool
           <ellipse cx="260" cy="210" rx="620" ry="500" fill="url(#nebA)" />
           <ellipse cx="840" cy="860" rx="640" ry="520" fill="url(#nebB)" />
 
-          {/* 지도 격자 */}
-          <g stroke="rgba(150,165,235,0.07)" strokeWidth="1">
-            {grid.v.map(x => <line key={`v${x}`} x1={x} y1={-300} x2={x} y2={1300} />)}
-            {grid.h.map(y => <line key={`h${y}`} x1={-600} y1={y} x2={1600} y2={y} />)}
+          {/* 배경 지도 — 간소화한 대구 자치구 경계 (홀로그램 느낌: 글로우 + 라인) */}
+          <g fill="none" strokeLinejoin="round">
+            {DAEGU_MAP.paths.map((d, i) => <path key={`mg${i}`} d={d} stroke="rgba(120,150,240,0.13)" strokeWidth="5" />)}
+            {DAEGU_MAP.paths.map((d, i) => <path key={`ml${i}`} d={d} stroke="rgba(174,196,255,0.28)" strokeWidth="1.1" />)}
           </g>
 
           {/* 별먼지 */}
@@ -287,10 +276,20 @@ export default function ConstellationMap({ embedded = false }: { embedded?: bool
             <PanelRow label="사연"><Val>{sel.count}개</Val></PanelRow>
           </div>
 
-          <a href={`https://map.naver.com/v5/search/${encodeURIComponent(sel.placeName)}`} target="_blank" rel="noopener noreferrer"
-             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '18px', fontFamily: FONT_UI, fontSize: '12px', color: '#F4D58A', background: 'rgba(244,213,138,0.12)', borderRadius: '99px', padding: '9px 16px', textDecoration: 'none' }}>
-            📍 네이버 지도에서 보기
-          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+            {/* 이곳의 사연 보기 — 엽서 리더로 진입 */}
+            {onOpenStories && (
+              <button onClick={() => onOpenStories(sel.placeName)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '13px', color: '#1a1730', background: '#F4D58A', border: 'none', borderRadius: '99px', padding: '10px 18px', cursor: 'pointer', fontWeight: 500 }}>
+                이곳의 사연 보기
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" /></svg>
+              </button>
+            )}
+            <a href={`https://map.naver.com/v5/search/${encodeURIComponent(sel.placeName)}`} target="_blank" rel="noopener noreferrer"
+               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(233,231,247,0.7)', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', padding: '9px 14px', textDecoration: 'none' }}>
+              📍 네이버 지도
+            </a>
+          </div>
         </div>
       )}
     </div>

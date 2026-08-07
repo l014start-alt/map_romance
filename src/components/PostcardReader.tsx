@@ -84,8 +84,13 @@ function formatDate(iso: string) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function PostcardReader({ spots }: { spots: Spot[] }) {
-  const [i, setI] = useState(0)
+export default function PostcardReader({ spots, startPlaceName }: { spots: Spot[]; startPlaceName?: string }) {
+  // 지도에서 특정 장소로 들어오면 그 장소의 첫 사연부터 시작
+  const [i, setI] = useState(() => {
+    if (!startPlaceName) return 0
+    const idx = spots.findIndex(s => s.placeName === startPlaceName)
+    return idx < 0 ? 0 : idx
+  })
   const touchX = useRef<number | null>(null)
 
   // 목록이 바뀌면(필터 등) 인덱스 보정

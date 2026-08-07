@@ -86,8 +86,10 @@ export default function App() {
 
   // 요구사항 2: 입장 시 선택한 캐릭터/지역 (헤더 뱃지 표시용)
   const [visitor, setVisitor]     = useState<{ characterId: string; region: string } | null>(null)
-  // 새 두번째 페이지 모드: 엽서 리더 ↔ 별자리 지도
-  const [secondView, setSecondView] = useState<SecondView>('read')
+  // 새 두번째 페이지 모드: 별자리 지도(기본) ↔ 엽서 리더
+  const [secondView, setSecondView] = useState<SecondView>('constellation')
+  // 지도에서 특정 장소를 눌러 사연으로 들어올 때 시작 장소
+  const [readerStart, setReaderStart] = useState<string | null>(null)
 
   const isDesktop = useIsDesktop()
 
@@ -144,12 +146,16 @@ export default function App() {
     transition(() => setView('intro'))         // D안: 곧장 지도가 아니라 환영 인트로부터
   }
 
-  /* ── 인트로 → 새 두번째 페이지(엽서 리더) 진입 ── */
+  /* ── 인트로 → 새 두번째 페이지: 별자리 지도부터 진입 ── */
   const goSecond = () => transition(() => {
     setSelectedRegion(DAEGU)
-    setSecondView('read')
+    setSecondView('constellation')  // 입장하면 지도가 먼저
+    setReaderStart(null)
     setView('read')
   })
+
+  /* 지도의 장소 → 그곳의 사연으로 진입 */
+  const openStories = (placeName: string) => { setReaderStart(placeName); setSecondView('read') }
   const goBack = () => transition(() => {
     setView('landing'); setActiveGroupKey(null)
     setPhase('idle'); setPin(null)
@@ -405,10 +411,10 @@ export default function App() {
             </div>
             {/* 우 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '14px' : '8px', flexShrink: 0 }}>
-              {/* 엽서 ↔ 지도 토글 */}
-              <div style={{ display: 'flex', gap: '2px', background: '#F2EEE9', borderRadius: '99px', padding: '3px' }}>
-                <button onClick={() => setSecondView('read')} style={segBtn(isRead)}>엽서</button>
+              {/* 지도 ↔ 사연 토글 (지도가 기본) */}
+              <div style={{ display: 'flex', gap: '2px', background: dark ? 'rgba(255,255,255,0.08)' : '#F2EEE9', borderRadius: '99px', padding: '3px' }}>
                 <button onClick={() => setSecondView('constellation')} style={segBtn(!isRead)}>지도</button>
+                <button onClick={() => { setReaderStart(null); setSecondView('read') }} style={segBtn(isRead)}>사연</button>
               </div>
               {/* 기록하기 */}
               <button onClick={startPicking} style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '17px' : '0', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: isDesktop ? '9px 20px' : '9px', borderRadius: isDesktop ? '10px' : '50%', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(128,0,32,0.22)', cursor: 'pointer', flexShrink: 0 }}>
@@ -423,8 +429,8 @@ export default function App() {
         {/* 본문 */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           {isRead
-            ? <PostcardReader spots={readerSpots} />
-            : <ConstellationMap embedded />}
+            ? <PostcardReader spots={readerSpots} startPlaceName={readerStart ?? undefined} />
+            : <ConstellationMap embedded onOpenStories={openStories} />}
         </div>
 
         {/* 기록 오버레이 — 검색 기반(지도 불필요), 데스크탑/모바일 공용 */}
