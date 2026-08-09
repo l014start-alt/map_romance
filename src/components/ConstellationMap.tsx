@@ -44,6 +44,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   const [tf, setTf]             = useState({ k: 1, tx: 0, ty: 0 })   // 줌/팬 트랜스폼
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
+  const suppressClick = useRef(false)  // 드래그 직후 발생하는 click 무시
 
   useEffect(() => {
     try {
@@ -177,20 +178,25 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     return () => svg.removeEventListener('wheel', onWheel)
   }, [])
 
+  // 포인터 캡처는 쓰지 않음(캡처하면 click 타깃이 노드가 아니라 SVG로 잡혀 선택이 안 됨)
   const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
     drag.current = { sx: e.clientX, sy: e.clientY, tx: tf.tx, ty: tf.ty, moved: false }
-    ;(e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current
     if (!d) return
+    if (!(e.buttons & 1)) { drag.current = null; return }  // 버튼이 떼어졌으면 종료
     const svg = svgRef.current
     const s = svg?.getScreenCTM()?.a || 1
     const dx = (e.clientX - d.sx) / s, dy = (e.clientY - d.sy) / s
     if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 4) d.moved = true
     setTf(cur => ({ ...cur, tx: d.tx + dx, ty: d.ty + dy }))
   }
-  const onPointerUp = () => { drag.current = null }
+  const onPointerUp = () => {
+    if (drag.current?.moved) suppressClick.current = true  // 팬 직후 click은 무시
+    drag.current = null
+  }
   const zoomBtn = (mult: number) => zoomAt(500, 500, mult)
   const reset = () => setTf({ k: 1, tx: 0, ty: 0 })
   // 노드 더블클릭 → 그 장소를 화면 중앙으로 확대(겹친 장소 분리에 유용)
@@ -231,7 +237,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
         <svg ref={svgRef} viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid meet"
              style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab', touchAction: 'none' }}
              onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-             onClick={() => { if (drag.current?.moved) return; setSelected(null) }}>
+             onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(null) }}>
           <defs>
             <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
@@ -279,7 +285,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
               const lab = labelLayout.get(n.key) ?? { dx: 0, dy: -20, anchor: 'middle' as const }
               return (
                 <g key={n.key} className="const-node" style={{ animationDelay: `${0.3 + i * 0.05}s`, cursor: 'pointer', opacity: dim ? 0.4 : 1, transition: 'opacity 0.2s' }}
-                   onClick={(ev) => { ev.stopPropagation(); if (drag.current?.moved) return; setSelected(prev => prev === n.key ? null : n.key) }}
+                   onClick={(ev) => { ev.stopPropagation(); if (suppressClick.current) { suppressClick.current = false; return } setSelected(prev => prev === n.key ? null : n.key) }}
                    onDoubleClick={(ev) => { ev.stopPropagation(); focusNode(n) }}
                    onMouseEnter={() => setHover(n.key)} onMouseLeave={() => setHover(null)}>
                   {/* 넓은 투명 클릭 영역(화면상 ~20px 고정) — 작아도 누르기 쉽게 */}
