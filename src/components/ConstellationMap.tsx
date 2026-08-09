@@ -15,7 +15,6 @@ import { MOCK_SPOTS } from '@/lib/mockData'
 import { DAEGU_MAP } from '@/lib/daeguMap'
 
 const FONT_BRAND = 'var(--font-brand)'
-const FONT_SERIF = 'var(--font-serif)'
 const FONT_UI    = 'var(--font-sans)'
 const LS_KEY = 'map_romance_local_spots'
 
@@ -27,7 +26,7 @@ interface Node {
 }
 
 const VB = 1000
-const MIN_K = 0.7, MAX_K = 6
+const MIN_K = 0.7, MAX_K = 14
 
 function mulberry32(a: number) {
   return function () {
@@ -194,6 +193,11 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   const onPointerUp = () => { drag.current = null }
   const zoomBtn = (mult: number) => zoomAt(500, 500, mult)
   const reset = () => setTf({ k: 1, tx: 0, ty: 0 })
+  // 노드 더블클릭 → 그 장소를 화면 중앙으로 확대(겹친 장소 분리에 유용)
+  const focusNode = (n: Node) => setTf(cur => {
+    const nk = Math.min(MAX_K, Math.max(cur.k * 2, 4))
+    return { k: nk, tx: 500 - nk * n.x, ty: 500 - nk * n.y }
+  })
 
   const inv = 1 / tf.k  // 마커·라벨을 화면상 일정 크기로 유지(역보정)
 
@@ -276,8 +280,11 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
               return (
                 <g key={n.key} className="const-node" style={{ animationDelay: `${0.3 + i * 0.05}s`, cursor: 'pointer', opacity: dim ? 0.4 : 1, transition: 'opacity 0.2s' }}
                    onClick={(ev) => { ev.stopPropagation(); if (drag.current?.moved) return; setSelected(prev => prev === n.key ? null : n.key) }}
+                   onDoubleClick={(ev) => { ev.stopPropagation(); focusNode(n) }}
                    onMouseEnter={() => setHover(n.key)} onMouseLeave={() => setHover(null)}>
-                  <circle cx={n.x} cy={n.y} r={(isActive ? 30 : 20) * inv} fill="url(#nodeGlow)" opacity={isActive ? 1 : 0.55} />
+                  {/* 넓은 투명 클릭 영역(화면상 ~20px 고정) — 작아도 누르기 쉽게 */}
+                  <circle cx={n.x} cy={n.y} r={20 * inv} fill="transparent" />
+                  <circle cx={n.x} cy={n.y} r={(isActive ? 30 : 20) * inv} fill="url(#nodeGlow)" opacity={isActive ? 1 : 0.55} style={{ pointerEvents: 'none' }} />
                   <circle cx={n.x} cy={n.y} r={(isActive ? 3.4 : 2.6) * inv} fill="#FFF6DC" />
                   <circle cx={n.x} cy={n.y} r={(isActive ? 1.7 : 1.3) * inv} fill="#FFFFFF" />
                   <text x={n.x + lab.dx * inv} y={n.y + lab.dy * inv} textAnchor={lab.anchor}
@@ -291,53 +298,90 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
           </g>
         </svg>
 
-        {/* 줌 컨트롤 */}
-        <div style={{ position: 'absolute', right: '16px', bottom: '16px', zIndex: 8, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* 줌 컨트롤 (우측 사연 드로어와 겹치지 않게 좌측 하단) */}
+        <div style={{ position: 'absolute', left: '16px', bottom: '16px', zIndex: 8, display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <ZoomBtn label="확대" onClick={() => zoomBtn(1.35)}><line x1="10" y1="4" x2="10" y2="16" /><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
           <ZoomBtn label="축소" onClick={() => zoomBtn(1 / 1.35)}><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
           <ZoomBtn label="처음 위치" onClick={reset}><path d="M4 10a6 6 0 1 1 1.8 4.3" /><polyline points="4,15 4,10 9,10" /></ZoomBtn>
         </div>
       </div>
 
-      {/* 상세 패널 — 다크 글래스 */}
-      {sel && (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10, background: 'rgba(10,11,22,0.9)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderTop: '1px solid rgba(255,255,255,0.09)', padding: '22px 28px 28px', animation: 'const-node-in 0.25s ease-out' }}>
-          <button onClick={() => setSelected(null)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(228,230,245,0.75)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: '99px', padding: '7px 14px', cursor: 'pointer', marginBottom: '16px' }}>
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
-            뒤로 가기
-          </button>
+      {/* 우측 사연 드로어 — 지명 클릭 시 그곳의 사연을 바로 보여줌 */}
+      {sel && (() => {
+        const selSpots = spots
+          .filter(s => s.placeName === sel.placeName)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        return (
+          <aside style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 'min(400px, 92%)', zIndex: 12,
+            background: 'rgba(9,10,20,0.94)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+            borderLeft: '1px solid rgba(255,255,255,0.09)', display: 'flex', flexDirection: 'column',
+            animation: 'drawer-in 0.28s ease-out', boxShadow: '-18px 0 44px rgba(0,0,0,0.45)' }}>
 
-          <p style={{ fontFamily: FONT_BRAND, fontSize: '26px', color: '#EFE3C4', lineHeight: 1.2, marginBottom: '16px' }}>{sel.placeName}</p>
+            {/* 헤더 */}
+            <header style={{ flexShrink: 0, padding: '20px 22px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontFamily: FONT_BRAND, fontSize: '24px', color: '#EFE3C4', lineHeight: 1.2, wordBreak: 'keep-all' }}>{sel.placeName}</p>
+                  <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(205,210,235,0.5)', marginTop: '6px', letterSpacing: '0.04em' }}>사연 {selSpots.length}개 · 연결 {sel.links}곳</p>
+                </div>
+                <button onClick={() => setSelected(null)} aria-label="닫기"
+                  style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(235,238,250,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="5" x2="15" y2="15" /><line x1="15" y1="5" x2="5" y2="15" /></svg>
+                </button>
+              </div>
+            </header>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <PanelRow label="분야">
-              <span style={{ display: 'inline-flex', gap: '6px' }}>
-                {sel.categories.map(c => (
-                  <span key={c} style={{ fontFamily: FONT_UI, fontSize: '12px', color: CAT_COLOR[c], border: `1px solid ${CAT_COLOR[c]}55`, background: `${CAT_COLOR[c]}1A`, borderRadius: '99px', padding: '3px 10px' }}>{c}</span>
-                ))}
-              </span>
-            </PanelRow>
-            <PanelRow label="연결"><Val>{sel.links}곳</Val></PanelRow>
-            <PanelRow label="사연"><Val>{sel.count}개</Val></PanelRow>
-          </div>
+            {/* 사연 목록 */}
+            <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {selSpots.length === 0
+                ? <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(205,210,235,0.5)', textAlign: 'center', marginTop: '30px' }}>아직 사연이 없어요</p>
+                : selSpots.map(s => <StoryCardDark key={s.id} spot={s} />)}
+            </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+            {/* 푸터 — 엽서 리더로 크게 보기 */}
             {onOpenStories && (
-              <button onClick={() => onOpenStories(sel.placeName)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '13px', color: '#141118', background: '#EFE3C4', border: 'none', borderRadius: '99px', padding: '10px 18px', cursor: 'pointer', fontWeight: 500 }}>
-                이곳의 사연 보기
-                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" /></svg>
-              </button>
+              <div style={{ flexShrink: 0, padding: '12px 18px 16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <button onClick={() => onOpenStories(sel.placeName)}
+                  style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '13px', color: '#141118', background: '#EFE3C4', border: 'none', borderRadius: '10px', padding: '11px 0', cursor: 'pointer', fontWeight: 500 }}>
+                  엽서로 크게 읽기
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" /></svg>
+                </button>
+              </div>
             )}
-            <a href={`https://map.naver.com/v5/search/${encodeURIComponent(sel.placeName)}`} target="_blank" rel="noopener noreferrer"
-               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(228,230,245,0.7)', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', padding: '9px 14px', textDecoration: 'none' }}>
-              📍 네이버 지도
-            </a>
-          </div>
+          </aside>
+        )
+      })()}
+    </div>
+  )
+}
+
+/* 우측 드로어용 사연 카드 (다크) */
+function formatDate(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+function StoryCardDark({ spot }: { spot: Spot }) {
+  const color = CAT_COLOR[spot.category] ?? '#EFE3C4'
+  return (
+    <article style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+      {spot.imageUrl && (
+        <div style={{ width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={spot.imageUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </div>
       )}
-    </div>
+      <div style={{ padding: '14px 16px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '10px', color, letterSpacing: '0.1em' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
+          </span>
+          <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: 'rgba(205,210,235,0.4)' }}>{formatDate(spot.createdAt)}</span>
+        </div>
+        {spot.title && <p style={{ fontFamily: FONT_BRAND, fontSize: '19px', color: '#F3EEE0', lineHeight: 1.3, marginBottom: '3px', wordBreak: 'keep-all' }}>{spot.title}</p>}
+        <p style={{ fontFamily: FONT_BRAND, fontSize: '12px', color: 'rgba(205,210,235,0.45)', marginBottom: '10px' }}>by {spot.nickname || '익명'}</p>
+        <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(224,228,244,0.82)', lineHeight: 1.85, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.moment}</p>
+      </div>
+    </article>
   )
 }
 
@@ -349,18 +393,6 @@ function ZoomBtn({ label, onClick, children }: { label: string; onClick: () => v
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
     </button>
   )
-}
-
-function PanelRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-      <span style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.14em', color: 'rgba(205,210,235,0.5)' }}>{label}</span>
-      {children}
-    </div>
-  )
-}
-function Val({ children }: { children: React.ReactNode }) {
-  return <span style={{ fontFamily: FONT_SERIF, fontSize: '15px', color: '#ECEDF6' }}>{children}</span>
 }
 
 /* 원형 눈금 게이지 */

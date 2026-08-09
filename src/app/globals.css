@@ -79,6 +79,9 @@ body {
   50%      { opacity: 0.12; r: 22; }
 }
 
+/* ── 우측 사연 드로어 슬라이드-인 ── */
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
 /* ── 별자리(우주) 지도: 별 반짝임 ── */
 @keyframes star-twinkle { 0%, 100% { opacity: 0.22; } 50% { opacity: 0.95; } }
 .star-tw { animation: star-twinkle 3.4s ease-in-out infinite; }

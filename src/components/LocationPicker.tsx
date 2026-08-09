@@ -44,67 +44,21 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
     setResults([])
     setShowResults(false)
 
-    // 네이버 Maps SDK 클라이언트 지오코더 우선 사용 — 결과 없으면 서버(Nominatim) 폴백
-    if (typeof window !== 'undefined' && window.naver?.maps?.Service?.geocode) {
-      window.naver.maps.Service.geocode(
-        { query: query.trim() },
-        async (status, response) => {
-          const ok = status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0
-          if (ok) {
-            setSearching(false)
-            const list: SearchResult[] = response.v2.addresses.slice(0, 5).map((addr) => ({
-              lat: parseFloat(addr.y),
-              lng: parseFloat(addr.x),
-              address: addr.roadAddress || addr.jibunAddress,
-              roadAddress: addr.roadAddress,
-              jibunAddress: addr.jibunAddress,
-            }))
-            setResults(list)
-            setShowResults(true)
-            if (list.length === 1) selectResult(list[0])
-          } else {
-            // SDK 결과 없음 → 서버 API(Naver REST + Nominatim) 폴백
-            try {
-              const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
-              const data = await res.json() as { results?: SearchResult[]; error?: string }
-              setSearching(false)
-              if (data.results && data.results.length > 0) {
-                setResults(data.results)
-                if (data.results.length === 1) {
-                  selectResult(data.results[0])
-                } else {
-                  setShowResults(true)
-                }
-              } else {
-                setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
-              }
-            } catch {
-              setSearching(false)
-              setError('검색 중 오류가 발생했어요.')
-            }
-          }
-        }
-      )
-    } else {
-      // 폴백: 서버 API 라우트 (Naver + Nominatim)
-      try {
-        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
-        const data = await res.json() as { results?: SearchResult[]; error?: string }
-        setSearching(false)
-        if (data.results && data.results.length > 0) {
-          setResults(data.results)
-          if (data.results.length === 1) {
-            selectResult(data.results[0])
-          } else {
-            setShowResults(true)
-          }
-        } else {
-          setError('위치를 찾을 수 없어요. 더 구체적으로 입력해보세요.')
-        }
-      } catch {
-        setSearching(false)
-        setError('검색 중 오류가 발생했어요.')
+    // 정확도 우선: 서버 /api/geocode (카카오 장소(POI) 검색 → 네이버 → Nominatim)
+    // 상호명으로도 정확히 찾도록 하고, 후보 목록을 항상 보여줘 사용자가 정확한 위치를 선택.
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`)
+      const data = await res.json() as { results?: SearchResult[]; error?: string }
+      setSearching(false)
+      if (data.results && data.results.length > 0) {
+        setResults(data.results)
+        setShowResults(true)
+      } else {
+        setError('위치를 찾을 수 없어요. 상호명이나 주소를 더 구체적으로 입력해보세요.')
       }
+    } catch {
+      setSearching(false)
+      setError('검색 중 오류가 발생했어요.')
     }
   }
 
@@ -171,7 +125,7 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
           value={query}
           onChange={(e) => { setQuery(e.target.value); setError(null); if (!e.target.value) { setResults([]); setShowResults(false) } }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void search() } }}
-          placeholder="장소명·주소 검색 (예: 대구역, 동성로)"
+          placeholder="가게 이름·장소·주소로 검색 (예: 김광석길, 수성못 카페)"
           style={{
             flex: 1,
             background: '#F0EDE8',
