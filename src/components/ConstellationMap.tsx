@@ -37,11 +37,69 @@ function mulberry32(a: number) {
   }
 }
 
+type Tf = { k: number; tx: number; ty: number }
+
+/* 사연 → 장소 노드 + 성좌선(가까운 곳끼리) 그래프 */
+function buildGraph(spots: Spot[]): { nodes: Node[]; edges: { a: string; b: string; key: string }[] } {
+  const map = new Map<string, { placeName: string; lat: number; lng: number; cats: Set<Category>; count: number }>()
+  for (const s of spots) {
+    if (s.lat == null || s.lng == null) continue
+    const key = s.placeName.trim()
+    const g = map.get(key)
+    if (g) { g.cats.add(s.category); g.count++ }
+    else map.set(key, { placeName: key, lat: s.lat, lng: s.lng, cats: new Set([s.category]), count: 1 })
+  }
+  const raw = Array.from(map.values())
+  if (raw.length === 0) return { nodes: [], edges: [] }
+
+  const px = (lng: number) => DAEGU_MAP.A * lng + DAEGU_MAP.B
+  const py = (lat: number) => DAEGU_MAP.C * lat + DAEGU_MAP.D
+  const nodes: Node[] = raw.map(r => ({
+    key: r.placeName, placeName: r.placeName, lat: r.lat, lng: r.lng,
+    x: px(r.lng), y: py(r.lat), categories: Array.from(r.cats), count: r.count, links: 0,
+  }))
+
+  const edgeSet = new Set<string>()
+  const edges: { a: string; b: string; key: string }[] = []
+  for (const n of nodes) {
+    const near = nodes.filter(m => m.key !== n.key)
+      .map(m => ({ m, d: (m.lat - n.lat) ** 2 + (m.lng - n.lng) ** 2 }))
+      .sort((p, q) => p.d - q.d).slice(0, 2)
+    for (const { m } of near) {
+      const key = [n.key, m.key].sort().join('|')
+      if (!edgeSet.has(key)) { edgeSet.add(key); edges.push({ a: n.key, b: m.key, key }) }
+    }
+  }
+  const linkCount = new Map<string, number>()
+  for (const e of edges) {
+    linkCount.set(e.a, (linkCount.get(e.a) ?? 0) + 1)
+    linkCount.set(e.b, (linkCount.get(e.b) ?? 0) + 1)
+  }
+  for (const n of nodes) n.links = linkCount.get(n.key) ?? 0
+  return { nodes, edges }
+}
+
+/* 노드들이 화면을 알맞게 채우도록 초기 줌/팬을 계산(빈 남부는 잘라내고 별무리를 가운데로).
+   pad = 노드 bounding box 바깥에 남길 여백 비율(라벨 공간 확보용). */
+function fitTransform(nodes: Node[], pad = 0.46): Tf {
+  if (nodes.length === 0) return { k: 1, tx: 0, ty: 0 }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const n of nodes) {
+    if (n.x < minX) minX = n.x; if (n.x > maxX) maxX = n.x
+    if (n.y < minY) minY = n.y; if (n.y > maxY) maxY = n.y
+  }
+  const bw = Math.max(maxX - minX, 1), bh = Math.max(maxY - minY, 1)
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+  const k = Math.min(MAX_K, Math.max(MIN_K, (VB * (1 - pad)) / Math.max(bw, bh)))
+  return { k, tx: VB / 2 - k * cx, ty: VB / 2 - k * cy }
+}
+
 export default function ConstellationMap({ embedded = false, onOpenStories }: { embedded?: boolean; onOpenStories?: (placeName: string) => void } = {}) {
   const [spots, setSpots]       = useState<Spot[]>(MOCK_SPOTS)
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover]       = useState<string | null>(null)
-  const [tf, setTf]             = useState({ k: 1, tx: 0, ty: 0 })   // 줌/팬 트랜스폼
+  // 초기 줌/팬 = 별무리에 맞춘 fit 뷰(MOCK_SPOTS 기준, 첫 렌더부터 프레이밍)
+  const [tf, setTf]             = useState<Tf>(() => fitTransform(buildGraph(MOCK_SPOTS).nodes))
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)  // 드래그 직후 발생하는 click 무시
@@ -55,44 +113,8 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     } catch { /* mock만 */ }
   }, [])
 
-  const { nodes, edges } = useMemo(() => {
-    const map = new Map<string, { placeName: string; lat: number; lng: number; cats: Set<Category>; count: number }>()
-    for (const s of spots) {
-      if (s.lat == null || s.lng == null) continue
-      const key = s.placeName.trim()
-      const g = map.get(key)
-      if (g) { g.cats.add(s.category); g.count++ }
-      else map.set(key, { placeName: key, lat: s.lat, lng: s.lng, cats: new Set([s.category]), count: 1 })
-    }
-    const raw = Array.from(map.values())
-    if (raw.length === 0) return { nodes: [] as Node[], edges: [] as { a: string; b: string; key: string }[] }
-
-    const px = (lng: number) => DAEGU_MAP.A * lng + DAEGU_MAP.B
-    const py = (lat: number) => DAEGU_MAP.C * lat + DAEGU_MAP.D
-    const nodes: Node[] = raw.map(r => ({
-      key: r.placeName, placeName: r.placeName, lat: r.lat, lng: r.lng,
-      x: px(r.lng), y: py(r.lat), categories: Array.from(r.cats), count: r.count, links: 0,
-    }))
-
-    const edgeSet = new Set<string>()
-    const edges: { a: string; b: string; key: string }[] = []
-    for (const n of nodes) {
-      const near = nodes.filter(m => m.key !== n.key)
-        .map(m => ({ m, d: (m.lat - n.lat) ** 2 + (m.lng - n.lng) ** 2 }))
-        .sort((p, q) => p.d - q.d).slice(0, 2)
-      for (const { m } of near) {
-        const key = [n.key, m.key].sort().join('|')
-        if (!edgeSet.has(key)) { edgeSet.add(key); edges.push({ a: n.key, b: m.key, key }) }
-      }
-    }
-    const linkCount = new Map<string, number>()
-    for (const e of edges) {
-      linkCount.set(e.a, (linkCount.get(e.a) ?? 0) + 1)
-      linkCount.set(e.b, (linkCount.get(e.b) ?? 0) + 1)
-    }
-    for (const n of nodes) n.links = linkCount.get(n.key) ?? 0
-    return { nodes, edges }
-  }, [spots])
+  const { nodes, edges } = useMemo(() => buildGraph(spots), [spots])
+  const fitTf = useMemo(() => fitTransform(nodes), [nodes])
 
   /* 별먼지 — 화면을 넉넉히 덮도록, 크기·밝기·반짝임 다양하게 */
   const stars = useMemo(() => {
@@ -198,7 +220,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     drag.current = null
   }
   const zoomBtn = (mult: number) => zoomAt(500, 500, mult)
-  const reset = () => setTf({ k: 1, tx: 0, ty: 0 })
+  const reset = () => setTf(fitTf)   // 처음 위치 = 별무리 fit 뷰
   // 노드 더블클릭 → 그 장소를 화면 중앙으로 확대(겹친 장소 분리에 유용)
   const focusNode = (n: Node) => setTf(cur => {
     const nk = Math.min(MAX_K, Math.max(cur.k * 2, 4))
