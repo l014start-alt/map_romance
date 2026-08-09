@@ -69,31 +69,11 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     const px = (lng: number) => DAEGU_MAP.A * lng + DAEGU_MAP.B
     const py = (lat: number) => DAEGU_MAP.C * lat + DAEGU_MAP.D
 
+    // 노드는 실제 위경도 그대로 투영 (지도와 정확히 정렬 — 밀어내기 없음)
     const nodes: Node[] = raw.map(r => ({
       key: r.placeName, placeName: r.placeName, lat: r.lat, lng: r.lng,
       x: px(r.lng), y: py(r.lat), categories: Array.from(r.cats), count: r.count, links: 0,
     }))
-
-    // 라벨이 겹치는 아주 가까운 곳만 살짝 벌림(지도 정렬은 최대한 유지)
-    const MIN_DIST = 128, MARGIN = 60
-    for (let iter = 0; iter < 60; iter++) {
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i], b = nodes[j]
-          let dx = b.x - a.x, dy = b.y - a.y
-          let d = Math.hypot(dx, dy)
-          if (d === 0) { dx = Math.random(); dy = Math.random(); d = Math.hypot(dx, dy) }
-          if (d < MIN_DIST) {
-            const push = (MIN_DIST - d) / 2, ux = dx / d, uy = dy / d
-            a.x -= ux * push; a.y -= uy * push; b.x += ux * push; b.y += uy * push
-          }
-        }
-      }
-      for (const n of nodes) {
-        n.x = Math.max(MARGIN, Math.min(VB - MARGIN, n.x))
-        n.y = Math.max(MARGIN, Math.min(VB - MARGIN, n.y))
-      }
-    }
 
     const edgeSet = new Set<string>()
     const edges: { a: string; b: string; key: string }[] = []
@@ -133,6 +113,33 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   }, [])
 
   const nodeByKey = useMemo(() => new Map(nodes.map(n => [n.key, n])), [nodes])
+
+  /* 라벨 배치 — 노드(점)는 실제 위치 고정, 라벨만 겹치지 않게 상/하/좌/우 후보 중 선택 */
+  const labelLayout = useMemo(() => {
+    const fs = 16
+    type Box = { x0: number; y0: number; x1: number; y1: number }
+    const overlaps = (a: Box, b: Box) => !(a.x1 < b.x0 || a.x0 > b.x1 || a.y1 < b.y0 || a.y0 > b.y1)
+    const boxes: Box[] = nodes.map(n => ({ x0: n.x - 9, y0: n.y - 9, x1: n.x + 9, y1: n.y + 9 })) // 점 영역(라벨이 다른 점을 덮지 않게)
+    const layout = new Map<string, { x: number; y: number; anchor: 'middle' | 'start' | 'end' }>()
+    for (const n of [...nodes].sort((a, b) => a.y - b.y)) {
+      const w = n.placeName.length * fs * 0.62
+      const cands = [
+        { x: n.x,      y: n.y - 20,    anchor: 'middle' as const, box: { x0: n.x - w / 2, y0: n.y - 20 - fs, x1: n.x + w / 2, y1: n.y - 20 } },
+        { x: n.x,      y: n.y + 30,    anchor: 'middle' as const, box: { x0: n.x - w / 2, y0: n.y + 30 - fs, x1: n.x + w / 2, y1: n.y + 30 } },
+        { x: n.x + 13, y: n.y + fs / 3, anchor: 'start'  as const, box: { x0: n.x + 13,     y0: n.y + fs / 3 - fs, x1: n.x + 13 + w, y1: n.y + fs / 3 } },
+        { x: n.x - 13, y: n.y + fs / 3, anchor: 'end'    as const, box: { x0: n.x - 13 - w,  y0: n.y + fs / 3 - fs, x1: n.x - 13,     y1: n.y + fs / 3 } },
+      ]
+      let best = cands[0], bestCount = Infinity
+      for (const c of cands) {
+        let cnt = 0
+        for (const b of boxes) if (overlaps(c.box, b)) cnt++
+        if (cnt < bestCount) { bestCount = cnt; best = c; if (cnt === 0) break }
+      }
+      boxes.push(best.box)
+      layout.set(n.key, { x: best.x, y: best.y, anchor: best.anchor })
+    }
+    return layout
+  }, [nodes])
   const active = selected ?? hover
   const connectedKeys = useMemo(() => {
     if (!active) return new Set<string>()
@@ -241,12 +248,17 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
                 {/* 별 코어 */}
                 <circle cx={n.x} cy={n.y} r={isActive ? 6.5 : 5} fill="#FFF6DC" />
                 <circle cx={n.x} cy={n.y} r={isActive ? 3 : 2.2} fill="#FFFFFF" />
-                {/* 라벨 */}
-                <text x={n.x} y={n.y - 22} textAnchor="middle"
-                      fontFamily="var(--font-sans)" fontSize={isActive ? 20 : 17}
-                      fill={isActive ? '#FFF7E6' : dim ? '#6a6d8c' : '#CBD0EA'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 400 }}>
-                  {n.placeName}
-                </text>
+                {/* 라벨 — 점은 실제 위치 고정, 라벨만 겹침 회피 위치에 표시 */}
+                {(() => {
+                  const lab = labelLayout.get(n.key) ?? { x: n.x, y: n.y - 20, anchor: 'middle' as const }
+                  return (
+                    <text x={lab.x} y={lab.y} textAnchor={lab.anchor}
+                          fontFamily="var(--font-sans)" fontSize={isActive ? 18 : 16}
+                          fill={isActive ? '#FFF7E6' : dim ? '#6a6d8c' : '#CBD0EA'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 400 }}>
+                      {n.placeName}
+                    </text>
+                  )
+                })()}
               </g>
             )
           })}
