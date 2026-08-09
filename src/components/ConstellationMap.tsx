@@ -1,19 +1,18 @@
 'use client'
 
 /* ══════════════════════════════════════════════════════════════
-   낭만 별자리 지도 — '우주에 떠 있는 지도' 느낌 (2D, 순수 SVG)
+   낭만 별자리 지도 — 깊은 밤하늘에 뜬 대구, 반짝이는 별들
    ----------------------------------------------------------------
-   · 딥스페이스 배경 + 은하 + 별먼지 + 지도 격자(그래티큘) 위에
-     장소를 별처럼 띄우고 가까운 곳끼리 성좌선으로 연결.
-   · 노드 클릭 → 연결 강조 + 상세 패널(뒤로가기/분야/연결/사연 수).
-   · 데이터는 기존 spots(mock + localStorage)를 그대로 사용.
+   · 순수 블랙 배경 + 은은히 반짝이는 별먼지 위로 간소화한 대구 지도.
+   · 장소를 실제 위경도 위치의 별로, 가까운 곳끼리 성좌선으로 연결.
+   · 휠/드래그/버튼으로 확대·축소·이동. 노드 클릭 → 상세 패널.
    ══════════════════════════════════════════════════════════════ */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Spot, Category } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
-import { DAEGU_MAP } from '@/lib/daeguMap' // 간소화한 대구 자치구 경계(배경 지도)
+import { DAEGU_MAP } from '@/lib/daeguMap'
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_SERIF = 'var(--font-serif)'
@@ -28,8 +27,8 @@ interface Node {
 }
 
 const VB = 1000
+const MIN_K = 0.7, MAX_K = 6
 
-/* 결정적 난수 (별 배치가 렌더마다 안 바뀌게) */
 function mulberry32(a: number) {
   return function () {
     a |= 0; a = (a + 0x6D2B79F5) | 0
@@ -43,6 +42,9 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   const [spots, setSpots]       = useState<Spot[]>(MOCK_SPOTS)
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover]       = useState<string | null>(null)
+  const [tf, setTf]             = useState({ k: 1, tx: 0, ty: 0 })   // 줌/팬 트랜스폼
+  const svgRef = useRef<SVGSVGElement>(null)
+  const drag = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
 
   useEffect(() => {
     try {
@@ -50,7 +52,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
       const local: Spot[] = raw ? JSON.parse(raw) : []
       const ids = new Set(local.map(s => s.id))
       setSpots([...local, ...MOCK_SPOTS.filter(s => !ids.has(s.id))])
-    } catch { /* mock만 사용 */ }
+    } catch { /* mock만 */ }
   }, [])
 
   const { nodes, edges } = useMemo(() => {
@@ -65,11 +67,8 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     const raw = Array.from(map.values())
     if (raw.length === 0) return { nodes: [] as Node[], edges: [] as { a: string; b: string; key: string }[] }
 
-    // 배경 지도와 동일한 선형 투영 → 노드가 실제 대구 자치구 위에 놓임
     const px = (lng: number) => DAEGU_MAP.A * lng + DAEGU_MAP.B
     const py = (lat: number) => DAEGU_MAP.C * lat + DAEGU_MAP.D
-
-    // 노드는 실제 위경도 그대로 투영 (지도와 정확히 정렬 — 밀어내기 없음)
     const nodes: Node[] = raw.map(r => ({
       key: r.placeName, placeName: r.placeName, lat: r.lat, lng: r.lng,
       x: px(r.lng), y: py(r.lat), categories: Array.from(r.cats), count: r.count, links: 0,
@@ -95,39 +94,39 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     return { nodes, edges }
   }, [spots])
 
-  /* 별먼지 — viewBox 밖까지 넉넉히 뿌려 넓은 화면에서도 채움 */
+  /* 별먼지 — 화면을 넉넉히 덮도록, 크기·밝기·반짝임 다양하게 */
   const stars = useMemo(() => {
-    const rnd = mulberry32(20260807)
-    const arr: { x: number; y: number; r: number; o: number; tw: boolean; d: string }[] = []
-    for (let i = 0; i < 230; i++) {
+    const rnd = mulberry32(20260811)
+    const arr: { x: number; y: number; r: number; o: number; tw: boolean; dur: string; d: string }[] = []
+    for (let i = 0; i < 280; i++) {
+      const big = rnd() < 0.05
       arr.push({
-        x: -600 + rnd() * 2200,
-        y: -300 + rnd() * 1600,
-        r: 0.5 + rnd() * 1.9,
-        o: 0.15 + rnd() * 0.7,
-        tw: rnd() < 0.18,
-        d: (rnd() * 3.4).toFixed(2),
+        x: -700 + rnd() * 2400,
+        y: -400 + rnd() * 1800,
+        r: big ? 1.6 + rnd() * 1.3 : 0.4 + rnd() * 1.1,
+        o: 0.1 + rnd() * 0.7,
+        tw: rnd() < 0.4,
+        dur: (2.4 + rnd() * 3.6).toFixed(2),
+        d: (rnd() * 4).toFixed(2),
       })
     }
     return arr
   }, [])
 
-  const nodeByKey = useMemo(() => new Map(nodes.map(n => [n.key, n])), [nodes])
-
-  /* 라벨 배치 — 노드(점)는 실제 위치 고정, 라벨만 겹치지 않게 상/하/좌/우 후보 중 선택 */
+  /* 라벨 위치 오프셋(점 기준) — 겹치지 않게 상/하/좌/우 후보 중 선택 */
   const labelLayout = useMemo(() => {
     const fs = 16
     type Box = { x0: number; y0: number; x1: number; y1: number }
     const overlaps = (a: Box, b: Box) => !(a.x1 < b.x0 || a.x0 > b.x1 || a.y1 < b.y0 || a.y0 > b.y1)
-    const boxes: Box[] = nodes.map(n => ({ x0: n.x - 9, y0: n.y - 9, x1: n.x + 9, y1: n.y + 9 })) // 점 영역(라벨이 다른 점을 덮지 않게)
-    const layout = new Map<string, { x: number; y: number; anchor: 'middle' | 'start' | 'end' }>()
+    const boxes: Box[] = nodes.map(n => ({ x0: n.x - 9, y0: n.y - 9, x1: n.x + 9, y1: n.y + 9 }))
+    const layout = new Map<string, { dx: number; dy: number; anchor: 'middle' | 'start' | 'end' }>()
     for (const n of [...nodes].sort((a, b) => a.y - b.y)) {
       const w = n.placeName.length * fs * 0.62
       const cands = [
-        { x: n.x,      y: n.y - 20,    anchor: 'middle' as const, box: { x0: n.x - w / 2, y0: n.y - 20 - fs, x1: n.x + w / 2, y1: n.y - 20 } },
-        { x: n.x,      y: n.y + 30,    anchor: 'middle' as const, box: { x0: n.x - w / 2, y0: n.y + 30 - fs, x1: n.x + w / 2, y1: n.y + 30 } },
-        { x: n.x + 13, y: n.y + fs / 3, anchor: 'start'  as const, box: { x0: n.x + 13,     y0: n.y + fs / 3 - fs, x1: n.x + 13 + w, y1: n.y + fs / 3 } },
-        { x: n.x - 13, y: n.y + fs / 3, anchor: 'end'    as const, box: { x0: n.x - 13 - w,  y0: n.y + fs / 3 - fs, x1: n.x - 13,     y1: n.y + fs / 3 } },
+        { x: n.x, y: n.y - 20, anchor: 'middle' as const, box: { x0: n.x - w / 2, y0: n.y - 20 - fs, x1: n.x + w / 2, y1: n.y - 20 } },
+        { x: n.x, y: n.y + 30, anchor: 'middle' as const, box: { x0: n.x - w / 2, y0: n.y + 30 - fs, x1: n.x + w / 2, y1: n.y + 30 } },
+        { x: n.x + 14, y: n.y + fs / 3, anchor: 'start' as const, box: { x0: n.x + 14, y0: n.y + fs / 3 - fs, x1: n.x + 14 + w, y1: n.y + fs / 3 } },
+        { x: n.x - 14, y: n.y + fs / 3, anchor: 'end' as const, box: { x0: n.x - 14 - w, y0: n.y + fs / 3 - fs, x1: n.x - 14, y1: n.y + fs / 3 } },
       ]
       let best = cands[0], bestCount = Infinity
       for (const c of cands) {
@@ -136,10 +135,12 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
         if (cnt < bestCount) { bestCount = cnt; best = c; if (cnt === 0) break }
       }
       boxes.push(best.box)
-      layout.set(n.key, { x: best.x, y: best.y, anchor: best.anchor })
+      layout.set(n.key, { dx: best.x - n.x, dy: best.y - n.y, anchor: best.anchor })
     }
     return layout
   }, [nodes])
+
+  const nodeByKey = useMemo(() => new Map(nodes.map(n => [n.key, n])), [nodes])
   const active = selected ?? hover
   const connectedKeys = useMemo(() => {
     if (!active) return new Set<string>()
@@ -147,14 +148,58 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     for (const e of edges) { if (e.a === active) set.add(e.b); if (e.b === active) set.add(e.a) }
     return set
   }, [active, edges])
-
   const sel = selected ? nodeByKey.get(selected) ?? null : null
-  const cxAvg = nodes.length ? nodes.reduce((s, n) => s + n.x, 0) / nodes.length : 500
-  const cyAvg = nodes.length ? nodes.reduce((s, n) => s + n.y, 0) / nodes.length : 500
+
+  /* ── 줌/팬 ── */
+  const clientToSvg = (cx: number, cy: number) => {
+    const svg = svgRef.current
+    if (!svg) return { x: 0, y: 0 }
+    const m = svg.getScreenCTM()
+    if (!m) return { x: 0, y: 0 }
+    const pt = svg.createSVGPoint(); pt.x = cx; pt.y = cy
+    const p = pt.matrixTransform(m.inverse())
+    return { x: p.x, y: p.y }
+  }
+  const zoomAt = (px: number, py: number, mult: number) => setTf(cur => {
+    const nk = Math.min(MAX_K, Math.max(MIN_K, cur.k * mult))
+    const f = nk / cur.k
+    return { k: nk, tx: px - f * (px - cur.tx), ty: py - f * (py - cur.ty) }
+  })
+  // 휠 줌(포인터 기준) — passive:false 로 직접 등록
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const p = clientToSvg(e.clientX, e.clientY)
+      zoomAt(p.x, p.y, Math.exp(-e.deltaY * 0.0016))
+    }
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    return () => svg.removeEventListener('wheel', onWheel)
+  }, [])
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    drag.current = { sx: e.clientX, sy: e.clientY, tx: tf.tx, ty: tf.ty, moved: false }
+    ;(e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current
+    if (!d) return
+    const svg = svgRef.current
+    const s = svg?.getScreenCTM()?.a || 1
+    const dx = (e.clientX - d.sx) / s, dy = (e.clientY - d.sy) / s
+    if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 4) d.moved = true
+    setTf(cur => ({ ...cur, tx: d.tx + dx, ty: d.ty + dy }))
+  }
+  const onPointerUp = () => { drag.current = null }
+  const zoomBtn = (mult: number) => zoomAt(500, 500, mult)
+  const reset = () => setTf({ k: 1, tx: 0, ty: 0 })
+
+  const inv = 1 / tf.k  // 마커·라벨을 화면상 일정 크기로 유지(역보정)
 
   return (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-      background: 'radial-gradient(125% 90% at 50% 22%, #1c1940 0%, #100d24 46%, #06060f 100%)' }}>
+      background: 'radial-gradient(130% 100% at 50% 28%, #0b0d18 0%, #06070e 55%, #000 100%)' }}>
 
       {/* 헤더 / 게이지 */}
       {embedded ? (
@@ -164,117 +209,106 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
       ) : (
         <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px', zIndex: 5 }}>
           <div>
-            <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(233,231,247,0.65)' }}>
+            <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(228,230,245,0.6)' }}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
               돌아가기
             </Link>
-            <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#F4D58A', lineHeight: 1.1, marginTop: '8px' }}>낭만 별자리 지도</p>
-            <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(210,214,240,0.55)', marginTop: '4px', letterSpacing: '0.02em' }}>
-              우주에 떠 있는 우리들의 자리 · 장소 {nodes.length}곳
+            <p style={{ fontFamily: FONT_BRAND, fontSize: '30px', color: '#EFE3C4', lineHeight: 1.1, marginTop: '8px' }}>낭만 별자리 지도</p>
+            <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(205,210,235,0.5)', marginTop: '4px', letterSpacing: '0.02em' }}>
+              밤하늘에 뜬 우리들의 자리 · 장소 {nodes.length}곳
             </p>
           </div>
           <Gauge count={nodes.length} />
         </header>
       )}
 
-      {/* 우주 지도 SVG */}
+      {/* 밤하늘 SVG */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <svg viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', display: 'block' }}
-             onClick={() => setSelected(null)}>
+        <svg ref={svgRef} viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid meet"
+             style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab', touchAction: 'none' }}
+             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
+             onClick={() => { if (drag.current?.moved) return; setSelected(null) }}>
           <defs>
-            <radialGradient id="nebA" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#4a3a86" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#4a3a86" stopOpacity="0" />
-            </radialGradient>
-            <radialGradient id="nebB" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#2f5a7a" stopOpacity="0.5" />
-              <stop offset="100%" stopColor="#2f5a7a" stopOpacity="0" />
-            </radialGradient>
-            <radialGradient id="territory" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#8ea0e0" stopOpacity="0.16" />
-              <stop offset="60%" stopColor="#8ea0e0" stopOpacity="0.05" />
-              <stop offset="100%" stopColor="#8ea0e0" stopOpacity="0" />
+            <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
             </radialGradient>
             <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#FFE7A8" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#FFE7A8" stopOpacity="0" />
+              <stop offset="0%" stopColor="#FFF4D8" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#FFF4D8" stopOpacity="0" />
             </radialGradient>
           </defs>
 
-          {/* 은하 */}
-          <ellipse cx="260" cy="210" rx="620" ry="500" fill="url(#nebA)" />
-          <ellipse cx="840" cy="860" rx="640" ry="520" fill="url(#nebB)" />
-
-          {/* 배경 지도 — 간소화한 대구 자치구 경계 (홀로그램 느낌: 글로우 + 라인) */}
-          <g fill="none" strokeLinejoin="round">
-            {DAEGU_MAP.paths.map((d, i) => <path key={`mg${i}`} d={d} stroke="rgba(120,150,240,0.13)" strokeWidth="5" />)}
-            {DAEGU_MAP.paths.map((d, i) => <path key={`ml${i}`} d={d} stroke="rgba(174,196,255,0.28)" strokeWidth="1.1" />)}
-          </g>
-
-          {/* 별먼지 */}
-          <g fill="#FFFFFF">
+          {/* 별먼지 — 고정 배경(줌 영향 없음) */}
+          <g>
             {stars.map((s, i) => (
-              <circle key={i} cx={s.x} cy={s.y} r={s.r} opacity={s.o}
-                className={s.tw ? 'star-tw' : undefined} style={s.tw ? { animationDelay: `${s.d}s` } : undefined} />
+              <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={s.o}
+                className={s.tw ? 'star-tw' : undefined}
+                style={s.tw ? { animationDuration: `${s.dur}s`, animationDelay: `${s.d}s` } : undefined} />
             ))}
           </g>
 
-          {/* 지역 발광(홀로그램 지도 느낌) */}
-          <ellipse cx={cxAvg} cy={cyAvg} rx="440" ry="360" fill="url(#territory)" />
+          {/* 줌/팬 대상: 대구 지도 + 성좌선 + 별(노드) */}
+          <g transform={`translate(${tf.tx} ${tf.ty}) scale(${tf.k})`}>
+            {/* 대구 자치구 경계 — 얇고 은은하게 */}
+            <g fill="none" strokeLinejoin="round" vectorEffect="non-scaling-stroke">
+              {DAEGU_MAP.paths.map((d, i) => <path key={`m${i}`} d={d} stroke="rgba(150,168,220,0.16)" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+            </g>
 
-          {/* 성좌선 */}
-          {edges.map((e, i) => {
-            const a = nodeByKey.get(e.a)!, b = nodeByKey.get(e.b)!
-            const isOn = active != null && (e.a === active || e.b === active)
-            return (
-              <line key={e.key} className="const-line" x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                stroke={isOn ? '#F4D58A' : '#93a0dd'} strokeWidth={isOn ? 2.2 : 1}
-                strokeOpacity={active == null ? 0.4 : isOn ? 0.9 : 0.12}
-                style={{ animationDelay: `${i * 0.06}s`, transition: 'stroke 0.2s, stroke-opacity 0.2s, stroke-width 0.2s' }} />
-            )
-          })}
+            {/* 성좌선 */}
+            {edges.map((e, i) => {
+              const a = nodeByKey.get(e.a)!, b = nodeByKey.get(e.b)!
+              const isOn = active != null && (e.a === active || e.b === active)
+              return (
+                <line key={e.key} className="const-line" x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                  stroke={isOn ? '#F4D58A' : 'rgba(200,208,240,0.34)'} strokeWidth={isOn ? 1.6 : 1}
+                  strokeOpacity={active == null ? 1 : isOn ? 1 : 0.18} vectorEffect="non-scaling-stroke"
+                  style={{ animationDelay: `${i * 0.06}s`, transition: 'stroke 0.2s, stroke-opacity 0.2s' }} />
+              )
+            })}
 
-          {/* 별(노드) */}
-          {nodes.map((n, i) => {
-            const isActive = active === n.key
-            const isConn = connectedKeys.has(n.key)
-            const dim = active != null && !isActive && !isConn
-            return (
-              <g key={n.key} className="const-node" style={{ animationDelay: `${0.3 + i * 0.05}s`, cursor: 'pointer', opacity: dim ? 0.4 : 1, transition: 'opacity 0.2s' }}
-                 onClick={(ev) => { ev.stopPropagation(); setSelected(prev => prev === n.key ? null : n.key) }}
-                 onMouseEnter={() => setHover(n.key)} onMouseLeave={() => setHover(null)}>
-                {/* 발광 후광 */}
-                <circle cx={n.x} cy={n.y} r={isActive ? 34 : 24} fill="url(#nodeGlow)" opacity={isActive ? 1 : 0.7} />
-                {/* 별 코어 */}
-                <circle cx={n.x} cy={n.y} r={isActive ? 6.5 : 5} fill="#FFF6DC" />
-                <circle cx={n.x} cy={n.y} r={isActive ? 3 : 2.2} fill="#FFFFFF" />
-                {/* 라벨 — 점은 실제 위치 고정, 라벨만 겹침 회피 위치에 표시 */}
-                {(() => {
-                  const lab = labelLayout.get(n.key) ?? { x: n.x, y: n.y - 20, anchor: 'middle' as const }
-                  return (
-                    <text x={lab.x} y={lab.y} textAnchor={lab.anchor}
-                          fontFamily="var(--font-sans)" fontSize={isActive ? 18 : 16}
-                          fill={isActive ? '#FFF7E6' : dim ? '#6a6d8c' : '#CBD0EA'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 400 }}>
-                      {n.placeName}
-                    </text>
-                  )
-                })()}
-              </g>
-            )
-          })}
+            {/* 별(노드) — 화면상 일정 크기로(inv 역보정) */}
+            {nodes.map((n, i) => {
+              const isActive = active === n.key
+              const isConn = connectedKeys.has(n.key)
+              const dim = active != null && !isActive && !isConn
+              const lab = labelLayout.get(n.key) ?? { dx: 0, dy: -20, anchor: 'middle' as const }
+              return (
+                <g key={n.key} className="const-node" style={{ animationDelay: `${0.3 + i * 0.05}s`, cursor: 'pointer', opacity: dim ? 0.4 : 1, transition: 'opacity 0.2s' }}
+                   onClick={(ev) => { ev.stopPropagation(); if (drag.current?.moved) return; setSelected(prev => prev === n.key ? null : n.key) }}
+                   onMouseEnter={() => setHover(n.key)} onMouseLeave={() => setHover(null)}>
+                  <circle cx={n.x} cy={n.y} r={(isActive ? 30 : 20) * inv} fill="url(#nodeGlow)" opacity={isActive ? 1 : 0.55} />
+                  <circle cx={n.x} cy={n.y} r={(isActive ? 3.4 : 2.6) * inv} fill="#FFF6DC" />
+                  <circle cx={n.x} cy={n.y} r={(isActive ? 1.7 : 1.3) * inv} fill="#FFFFFF" />
+                  <text x={n.x + lab.dx * inv} y={n.y + lab.dy * inv} textAnchor={lab.anchor}
+                        fontFamily="var(--font-sans)" fontSize={(isActive ? 17 : 15) * inv} letterSpacing={0.3 * inv}
+                        fill={isActive ? '#FFF7E6' : dim ? '#6a6d8c' : 'rgba(206,212,236,0.82)'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 400 }}>
+                    {n.placeName}
+                  </text>
+                </g>
+              )
+            })}
+          </g>
         </svg>
+
+        {/* 줌 컨트롤 */}
+        <div style={{ position: 'absolute', right: '16px', bottom: '16px', zIndex: 8, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <ZoomBtn label="확대" onClick={() => zoomBtn(1.35)}><line x1="10" y1="4" x2="10" y2="16" /><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
+          <ZoomBtn label="축소" onClick={() => zoomBtn(1 / 1.35)}><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
+          <ZoomBtn label="처음 위치" onClick={reset}><path d="M4 10a6 6 0 1 1 1.8 4.3" /><polyline points="4,15 4,10 9,10" /></ZoomBtn>
+        </div>
       </div>
 
       {/* 상세 패널 — 다크 글래스 */}
       {sel && (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10, background: 'rgba(16,14,34,0.86)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderTop: '1px solid rgba(255,255,255,0.10)', padding: '22px 28px 28px', animation: 'const-node-in 0.25s ease-out' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10, background: 'rgba(10,11,22,0.9)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderTop: '1px solid rgba(255,255,255,0.09)', padding: '22px 28px 28px', animation: 'const-node-in 0.25s ease-out' }}>
           <button onClick={() => setSelected(null)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(233,231,247,0.75)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '99px', padding: '7px 14px', cursor: 'pointer', marginBottom: '16px' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(228,230,245,0.75)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.13)', borderRadius: '99px', padding: '7px 14px', cursor: 'pointer', marginBottom: '16px' }}>
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
             뒤로 가기
           </button>
 
-          <p style={{ fontFamily: FONT_BRAND, fontSize: '26px', color: '#F4D58A', lineHeight: 1.2, marginBottom: '16px' }}>{sel.placeName}</p>
+          <p style={{ fontFamily: FONT_BRAND, fontSize: '26px', color: '#EFE3C4', lineHeight: 1.2, marginBottom: '16px' }}>{sel.placeName}</p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <PanelRow label="분야">
@@ -289,16 +323,15 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
-            {/* 이곳의 사연 보기 — 엽서 리더로 진입 */}
             {onOpenStories && (
               <button onClick={() => onOpenStories(sel.placeName)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '13px', color: '#1a1730', background: '#F4D58A', border: 'none', borderRadius: '99px', padding: '10px 18px', cursor: 'pointer', fontWeight: 500 }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '13px', color: '#141118', background: '#EFE3C4', border: 'none', borderRadius: '99px', padding: '10px 18px', cursor: 'pointer', fontWeight: 500 }}>
                 이곳의 사연 보기
                 <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" /></svg>
               </button>
             )}
             <a href={`https://map.naver.com/v5/search/${encodeURIComponent(sel.placeName)}`} target="_blank" rel="noopener noreferrer"
-               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(233,231,247,0.7)', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', padding: '9px 14px', textDecoration: 'none' }}>
+               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(228,230,245,0.7)', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', padding: '9px 14px', textDecoration: 'none' }}>
               📍 네이버 지도
             </a>
           </div>
@@ -308,19 +341,29 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   )
 }
 
+/* 줌 버튼 */
+function ZoomBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} aria-label={label} title={label}
+      style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(235,238,250,0.85)' }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+    </button>
+  )
+}
+
 function PanelRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-      <span style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.14em', color: 'rgba(210,214,240,0.5)' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <span style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.14em', color: 'rgba(205,210,235,0.5)' }}>{label}</span>
       {children}
     </div>
   )
 }
 function Val({ children }: { children: React.ReactNode }) {
-  return <span style={{ fontFamily: FONT_SERIF, fontSize: '15px', color: '#EDECF5' }}>{children}</span>
+  return <span style={{ fontFamily: FONT_SERIF, fontSize: '15px', color: '#ECEDF6' }}>{children}</span>
 }
 
-/* 원형 눈금 게이지 — 우주 톤 */
+/* 원형 눈금 게이지 */
 function Gauge({ count }: { count: number }) {
   const size = 96, cx = size / 2, cy = size / 2
   const R = 40, ticks = 60
@@ -330,17 +373,17 @@ function Gauge({ count }: { count: number }) {
         const ang = (i / ticks) * Math.PI * 2 - Math.PI / 2
         const len = 4 + (i % 5 === 0 ? 7 : i % 2 === 0 ? 3 : 1)
         const r1 = R, r2 = R - len
-        const rd = (v: number) => Math.round(v * 100) / 100  // 하이드레이션 float 불일치 방지
+        const rd = (v: number) => Math.round(v * 100) / 100
         return (
           <line key={i}
             x1={rd(cx + Math.cos(ang) * r1)} y1={rd(cy + Math.sin(ang) * r1)}
             x2={rd(cx + Math.cos(ang) * r2)} y2={rd(cy + Math.sin(ang) * r2)}
-            stroke="rgba(216,222,255,0.45)" strokeWidth={i % 5 === 0 ? 1.4 : 0.8} />
+            stroke="rgba(216,222,255,0.4)" strokeWidth={i % 5 === 0 ? 1.4 : 0.8} />
         )
       })}
-      <circle cx={cx} cy={cy} r={R - 14} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={1} />
-      <text x={cx} y={cy - 2} textAnchor="middle" fontFamily="var(--font-brand)" fontSize={22} fill="#F4D58A">{count}</text>
-      <text x={cx} y={cy + 12} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={7} letterSpacing="1.5" fill="rgba(210,214,240,0.6)">PLACES</text>
+      <circle cx={cx} cy={cy} r={R - 14} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+      <text x={cx} y={cy - 2} textAnchor="middle" fontFamily="var(--font-brand)" fontSize={22} fill="#EFE3C4">{count}</text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={7} letterSpacing="1.5" fill="rgba(205,210,235,0.6)">PLACES</text>
     </svg>
   )
 }
