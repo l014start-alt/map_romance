@@ -160,6 +160,8 @@ export default function App() {
     setView('landing'); setActiveGroupKey(null)
     setPhase('idle'); setPin(null)
   })
+  /* read 화면 하단 바: '돌아가기'는 환영 인트로로 한 단계, '처음으로'는 맨 처음(입장)으로 초기화 */
+  const goIntro = () => transition(() => { setPhase('idle'); setPin(null); setView('intro') })
 
   /* ── 탭 전환 (picking/form 중에는 map 탭으로만 전환) ── */
   const switchTab = (newTab: Tab) => {
@@ -319,8 +321,8 @@ export default function App() {
     return (
       <div style={{ ...pageStyle, background: '#FAF8F5', display: 'flex', overflow: 'hidden' }}>
 
-        {/* 좌측 — 히어로 일러스트 (그대로 유지, 상단 선은 이미지 파일에서 제거 완료) */}
-        <div style={{ width: '46%', minWidth: '420px', maxWidth: '760px', height: '100%', background: '#FAF8F5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px', borderRight: '1px solid #EDE9E4' }}>
+        {/* 좌측 — 히어로 일러스트 (화면 절반 고정) */}
+        <div style={{ width: '50%', flexShrink: 0, height: '100%', background: '#FAF8F5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px', borderRight: '1px solid #EDE9E4' }}>
           <Image
             src="/hero-map.png"
             alt="낭만여지도"
@@ -331,12 +333,12 @@ export default function App() {
           />
         </div>
 
-        {/* 우측 — 남는 공간: (위)입장 게이트 + (아래)2단 분할 Footer */}
-        <div style={{ flex: 1, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {/* 우측 — 화면 절반: (위)입장 게이트 + (아래)2단 분할 Footer */}
+        <div style={{ width: '50%', flexShrink: 0, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 56px' }}>
             <EntryGate onStart={enterWithSelection} desktop />
           </div>
-          {/* 변경: 우측 영역 하단을 좌(상호+주소)/우(나머지)로 분할 */}
+          {/* 우측 영역 하단을 좌(상호+주소)/우(나머지)로 분할 */}
           <Footer />
         </div>
       </div>
@@ -402,10 +404,12 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', padding: isDesktop ? '16px 32px' : '12px 16px' }}>
             {/* 좌 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '18px' : '10px', minWidth: 0 }}>
-              <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: dark ? 'rgba(233,231,247,0.7)' : '#6B6560', cursor: 'pointer', flexShrink: 0 }}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
-                {isDesktop ? '지역 선택' : ''}
-              </button>
+              {/* 모바일: 상단 돌아가기(아이콘) / 데스크탑: 하단 바로 이동 */}
+              {!isDesktop && (
+                <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: dark ? 'rgba(233,231,247,0.7)' : '#6B6560', cursor: 'pointer', flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
+                </button>
+              )}
               <span style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '26px' : '19px', color: dark ? '#F4D58A' : '#800020', lineHeight: 1 }}>낭만여지도</span>
               {isDesktop && visitor && <VisitorBadge characterId={visitor.characterId} region={visitor.region} />}
             </div>
@@ -416,11 +420,12 @@ export default function App() {
                 <button onClick={() => setSecondView('constellation')} style={segBtn(!isRead)}>지도</button>
                 <button onClick={() => { setReaderStart(null); setSecondView('read') }} style={segBtn(isRead)}>사연</button>
               </div>
-              {/* 기록하기 */}
-              <button onClick={startPicking} style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '17px' : '0', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: isDesktop ? '9px 20px' : '9px', borderRadius: isDesktop ? '10px' : '50%', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(128,0,32,0.22)', cursor: 'pointer', flexShrink: 0 }}>
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
-                {isDesktop ? '낭만여지도 남기기' : ''}
-              </button>
+              {/* 기록하기 — 모바일만 상단(아이콘). 데스크탑은 하단 바로 이동 */}
+              {!isDesktop && (
+                <button onClick={startPicking} style={{ fontFamily: FONT_BRAND, fontSize: '0', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: '9px', borderRadius: '50%', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(128,0,32,0.22)', cursor: 'pointer', flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
+                </button>
+              )}
             </div>
           </div>
           {/* 카테고리 필터 제거 — 사연을 하나의 흐름으로 봄 */}
@@ -432,6 +437,26 @@ export default function App() {
             ? <PostcardReader spots={readerSpots} startPlaceName={readerStart ?? undefined} />
             : <ConstellationMap embedded onOpenStories={openStories} />}
         </div>
+
+        {/* 데스크탑(키오스크) 하단 고정 바 — 돌아가기 · 처음으로 · 낭만여지도 남기기 */}
+        {isDesktop && (
+          <footer style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', padding: '16px 32px', borderTop: dark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #EDE9E4', background: dark ? '#141130' : '#FAF8F5', transition: 'background 0.3s, border-color 0.3s', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button onClick={goIntro} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '14px', color: dark ? 'rgba(233,231,247,0.82)' : '#6B6560', background: 'transparent', border: `1px solid ${dark ? 'rgba(255,255,255,0.18)' : '#E4DFD9'}`, borderRadius: '10px', padding: '11px 20px', cursor: 'pointer', transition: 'all 0.16s' }}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
+                돌아가기
+              </button>
+              <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '14px', color: dark ? 'rgba(233,231,247,0.82)' : '#6B6560', background: 'transparent', border: `1px solid ${dark ? 'rgba(255,255,255,0.18)' : '#E4DFD9'}`, borderRadius: '10px', padding: '11px 20px', cursor: 'pointer', transition: 'all 0.16s' }}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10a6 6 0 1 1 1.8 4.3" /><polyline points="4,15 4,10 9,10" /></svg>
+                처음으로
+              </button>
+            </div>
+            <button onClick={startPicking} style={{ display: 'flex', alignItems: 'center', gap: '9px', fontFamily: FONT_BRAND, fontSize: '20px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', border: 'none', borderRadius: '12px', padding: '13px 34px', boxShadow: '0 4px 16px rgba(128,0,32,0.26)', cursor: 'pointer' }}>
+              <svg width="15" height="15" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
+              낭만여지도 남기기
+            </button>
+          </footer>
+        )}
 
         {/* 기록 오버레이 — 검색 기반(지도 불필요), 데스크탑/모바일 공용 */}
         {phase === 'picking' && (
@@ -833,11 +858,12 @@ function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: str
 }
 
 /* 단계 라벨 (①/② 스텝 표시) */
-function StepLabel({ n, text }: { n: number; text: string }) {
+function StepLabel({ n, text, desktop = false }: { n: number; text: string; desktop?: boolean }) {
+  const d = desktop
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#800020', color: '#FAF8F5', fontFamily: FONT_UI, fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{n}</span>
-      <span style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#2A2520', letterSpacing: '0.02em' }}>{text}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: d ? '10px' : '8px' }}>
+      <span style={{ width: d ? '26px' : '20px', height: d ? '26px' : '20px', borderRadius: '50%', background: '#800020', color: '#FAF8F5', fontFamily: FONT_UI, fontSize: d ? '14px' : '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{n}</span>
+      <span style={{ fontFamily: FONT_UI, fontSize: d ? '17px' : '13px', color: '#2A2520', letterSpacing: '0.02em' }}>{text}</span>
     </div>
   )
 }
@@ -856,20 +882,20 @@ function EntryGate({ onStart, desktop = false }: { onStart: (characterId: string
   }
 
   return (
-    <div style={{ width: desktop ? '460px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: desktop ? '30px' : '26px' }}>
+    <div style={{ width: desktop ? '640px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: desktop ? '40px' : '26px' }}>
 
       {/* STEP 1 — 캐릭터 선택 */}
       <section>
-        <StepLabel n={1} text="나의 캐릭터를 골라주세요" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '14px' }}>
+        <StepLabel n={1} text="나의 캐릭터를 골라주세요" desktop={desktop} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: desktop ? '16px' : '10px', marginTop: desktop ? '20px' : '14px' }}>
           {CHARACTERS.map(c => {
             const on = character === c.id
             return (
               // 요구사항 1: 아이콘 하단 한글 라벨 제거 → 아이콘만 표시 (이름은 title 툴팁으로만 유지)
               <button key={c.id} onClick={() => setCharacter(c.id)} title={c.name} aria-label={c.name}
-                style={{ aspectRatio: '1 / 1', borderRadius: '14px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#FFF5F5' : '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: on ? '0 4px 14px rgba(128,0,32,0.16)' : 'none', transform: on ? 'translateY(-2px)' : 'translateY(0)', transition: 'all 0.16s' }}>
+                style={{ aspectRatio: '1 / 1', borderRadius: desktop ? '18px' : '14px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#FFF5F5' : '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: on ? '0 4px 14px rgba(128,0,32,0.16)' : 'none', transform: on ? 'translateY(-2px)' : 'translateY(0)', transition: 'all 0.16s' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.src} alt={c.name} style={{ width: '58%', height: '58%', objectFit: 'contain' }} />
+                <img src={c.src} alt={c.name} style={{ width: '62%', height: '62%', objectFit: 'contain' }} />
               </button>
             )
           })}
@@ -878,13 +904,13 @@ function EntryGate({ onStart, desktop = false }: { onStart: (characterId: string
 
       {/* STEP 2 — 출신 지역 선택 */}
       <section>
-        <StepLabel n={2} text="어느 지역에서 오셨나요?" />
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '14px' }}>
+        <StepLabel n={2} text="어느 지역에서 오셨나요?" desktop={desktop} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: desktop ? '10px' : '8px', marginTop: desktop ? '20px' : '14px' }}>
           {ORIGINS.map(o => {
             const on = origin === o
             return (
               <button key={o} onClick={() => setOrigin(o)}
-                style={{ fontFamily: FONT_UI, fontSize: '13px', padding: '9px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#800020' : '#FFFFFF', color: on ? '#FAF8F5' : '#8A8480', fontWeight: on ? 500 : 400, cursor: 'pointer', transition: 'all 0.16s' }}>
+                style={{ fontFamily: FONT_UI, fontSize: desktop ? '16px' : '13px', padding: desktop ? '12px 22px' : '9px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#800020' : '#FFFFFF', color: on ? '#FAF8F5' : '#8A8480', fontWeight: on ? 500 : 400, cursor: 'pointer', transition: 'all 0.16s' }}>
                 {o}
               </button>
             )

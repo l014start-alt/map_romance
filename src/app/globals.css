@@ -22,6 +22,15 @@
   --font-sans: var(--font-sans);
 }
 
+/* 낭젊사 로고 글씨체 — 윤독립(Yoon Dokrip). "낭만젊음사랑" 글자만 서브셋한 woff */
+@font-face {
+  font-family: 'Yoon Dokrip';
+  src: url('/fonts/YoonDokrip-nangsa.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* 앱 컨테이너 — 모바일은 440px 컬럼, 데스크탑은 전체폭 */
