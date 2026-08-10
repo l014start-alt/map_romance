@@ -26,7 +26,7 @@ interface Node {
 }
 
 const VB = 1000
-const MIN_K = 0.7, MAX_K = 96   // 모바일에서 도심 밀집 구역까지 깊게 확대(터치 쉽게)
+const MIN_K = 0.7, MAX_K = 200   // 도심 밀집 구역까지 아주 깊게 확대(모바일 가독·터치)
 
 function mulberry32(a: number) {
   return function () {
@@ -145,7 +145,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
 
   /* 라벨 위치 오프셋(점 기준) — 겹치지 않게 상/하/좌/우 후보 중 선택 */
   const labelLayout = useMemo(() => {
-    const fs = 16
+    const fs = 20
     type Box = { x0: number; y0: number; x1: number; y1: number }
     const overlaps = (a: Box, b: Box) => !(a.x1 < b.x0 || a.x0 > b.x1 || a.y1 < b.y0 || a.y0 > b.y1)
     const boxes: Box[] = nodes.map(n => ({ x0: n.x - 9, y0: n.y - 9, x1: n.x + 9, y1: n.y + 9 }))
@@ -408,8 +408,8 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
                   <circle cx={n.x} cy={n.y} r={coreR * inv} fill="#FFF6DC" />
                   <circle cx={n.x} cy={n.y} r={(isActive ? 1.7 : 1.3) * sizeMul * inv} fill="#FFFFFF" />
                   <text x={n.x + lab.dx * inv} y={n.y + lab.dy * inv} textAnchor={lab.anchor}
-                        fontFamily="var(--font-sans)" fontSize={(isActive ? 17 : 15) * inv} letterSpacing={0.3 * inv}
-                        fill={isActive ? '#FFF7E6' : dim ? '#6a6d8c' : 'rgba(206,212,236,0.82)'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 400 }}>
+                        fontFamily="var(--font-sans)" fontSize={(isActive ? 23 : 20) * inv} letterSpacing={0.2 * inv}
+                        fill={isActive ? '#FFF7E6' : dim ? '#7a7d9c' : 'rgba(220,226,246,0.95)'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 500, paintOrder: 'stroke', stroke: 'rgba(6,7,14,0.55)', strokeWidth: 3 * inv }}>
                     {n.placeName}
                   </text>
                 </g>
