@@ -26,7 +26,7 @@ interface Node {
 }
 
 const VB = 1000
-const MIN_K = 0.7, MAX_K = 14
+const MIN_K = 0.7, MAX_K = 48   // 모바일에서 도심 밀집 구역까지 깊게 확대(터치 쉽게)
 
 function mulberry32(a: number) {
   return function () {
@@ -420,8 +420,8 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
 
         {/* 줌 컨트롤 (우측 사연 드로어와 겹치지 않게 좌측 하단) */}
         <div style={{ position: 'absolute', left: '16px', bottom: '16px', zIndex: 8, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <ZoomBtn label="확대" onClick={() => zoomBtn(1.35)}><line x1="10" y1="4" x2="10" y2="16" /><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
-          <ZoomBtn label="축소" onClick={() => zoomBtn(1 / 1.35)}><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
+          <ZoomBtn label="확대" onClick={() => zoomBtn(1.6)}><line x1="10" y1="4" x2="10" y2="16" /><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
+          <ZoomBtn label="축소" onClick={() => zoomBtn(1 / 1.6)}><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
           <ZoomBtn label="처음 위치" onClick={reset}><path d="M4 10a6 6 0 1 1 1.8 4.3" /><polyline points="4,15 4,10 9,10" /></ZoomBtn>
         </div>
       </div>
