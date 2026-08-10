@@ -103,6 +103,8 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)  // 드래그 직후 발생하는 click 무시
+  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())  // 활성 포인터(멀티터치)
+  const pinch = useRef<{ dist: number; mx: number; my: number } | null>(null) // 직전 핀치 상태
 
   useEffect(() => {
     try {
@@ -201,23 +203,60 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   }, [])
 
   // 포인터 캡처는 쓰지 않음(캡처하면 click 타깃이 노드가 아니라 SVG로 잡혀 선택이 안 됨)
+  const beginPinch = () => {
+    const pts = Array.from(pointers.current.values())
+    if (pts.length < 2) return
+    const [a, b] = pts
+    pinch.current = { dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }
+  }
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return
-    drag.current = { sx: e.clientX, sy: e.clientY, tx: tf.tx, ty: tf.ty, moved: false }
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.current.size >= 2) {         // 두 손가락 이상 → 팬 멈추고 핀치 시작
+      drag.current = null
+      beginPinch()
+    } else {
+      drag.current = { sx: e.clientX, sy: e.clientY, tx: tf.tx, ty: tf.ty, moved: false }
+    }
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    const d = drag.current
-    if (!d) return
-    if (!(e.buttons & 1)) { drag.current = null; return }  // 버튼이 떼어졌으면 종료
+    if (!pointers.current.has(e.pointerId)) return
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     const svg = svgRef.current
     const s = svg?.getScreenCTM()?.a || 1
+
+    if (pointers.current.size >= 2) {         // ── 핀치 줌 + 두 손가락 팬 ──
+      const [a, b] = Array.from(pointers.current.values())
+      const dist = Math.hypot(a.x - b.x, a.y - b.y)
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
+      const prev = pinch.current
+      if (prev && prev.dist > 0) {
+        const p = clientToSvg(mx, my)
+        zoomAt(p.x, p.y, dist / prev.dist)    // 손가락 간 거리 변화만큼 확대/축소
+        const dmx = (mx - prev.mx) / s, dmy = (my - prev.my) / s
+        setTf(cur => ({ ...cur, tx: cur.tx + dmx, ty: cur.ty + dmy }))  // 중심 이동만큼 팬
+      }
+      pinch.current = { dist, mx, my }
+      suppressClick.current = true            // 핀치 뒤 탭 선택 방지
+      return
+    }
+
+    const d = drag.current                    // ── 단일 포인터 팬 ──
+    if (!d) return
     const dx = (e.clientX - d.sx) / s, dy = (e.clientY - d.sy) / s
     if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 4) d.moved = true
     setTf(cur => ({ ...cur, tx: d.tx + dx, ty: d.ty + dy }))
   }
-  const onPointerUp = () => {
-    if (drag.current?.moved) suppressClick.current = true  // 팬 직후 click은 무시
-    drag.current = null
+  const onPointerUp = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId)
+    if (pointers.current.size < 2) pinch.current = null
+    if (pointers.current.size === 1) {        // 한 손가락만 남으면 그 손가락으로 팬 재개
+      const [rest] = Array.from(pointers.current.values())
+      drag.current = { sx: rest.x, sy: rest.y, tx: tf.tx, ty: tf.ty, moved: true }
+    } else if (pointers.current.size === 0) {
+      if (drag.current?.moved) suppressClick.current = true  // 팬/핀치 직후 click은 무시
+      drag.current = null
+    }
   }
   const zoomBtn = (mult: number) => zoomAt(500, 500, mult)
   const reset = () => setTf(fitTf)   // 처음 위치 = 별무리 fit 뷰
@@ -257,8 +296,8 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
       {/* 밤하늘 SVG */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <svg ref={svgRef} viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid meet"
-             style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab', touchAction: 'none' }}
-             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
+             style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
+             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onPointerLeave={onPointerUp}
              onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(null) }}>
           <defs>
             <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
