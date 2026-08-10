@@ -29,11 +29,10 @@ function SpotMiniMap({ spot }: { spot: Spot }) {
       const n = window.naver
       if (!n?.maps || !ref.current) return
       const pos = new n.maps.LatLng(spot.lat!, spot.lng!)
+      // 클릭 시 네이버 지도로 넘어감 — 위에 링크 오버레이가 덮어 지도는 정적 미리보기로 동작
       map = new n.maps.Map(ref.current, {
         center: pos, zoom: 16,
         logoControl: false, mapDataControl: false, scaleControl: false, zoomControl: false,
-        // 클릭 시 네이버 지도로 넘어가므로 미리보기는 정적으로(조작 비활성)
-        draggable: false, scrollWheel: false, pinchZoom: false, keyboardShortcuts: false, disableDoubleClickZoom: true,
       })
       new n.maps.Marker({ position: pos, map })
     }
