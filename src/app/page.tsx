@@ -435,7 +435,7 @@ export default function App() {
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           {isRead
             ? <PostcardReader spots={readerSpots} startPlaceName={readerStart ?? undefined} />
-            : <ConstellationMap embedded onOpenStories={openStories} />}
+            : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
         </div>
 
         {/* 데스크탑(키오스크) 하단 고정 바 — 돌아가기 · 처음으로 · 낭만여지도 남기기 */}

@@ -94,8 +94,8 @@ function fitTransform(nodes: Node[], pad = 0.46): Tf {
   return { k, tx: VB / 2 - k * cx, ty: VB / 2 - k * cy }
 }
 
-export default function ConstellationMap({ embedded = false, onOpenStories }: { embedded?: boolean; onOpenStories?: (placeName: string) => void } = {}) {
-  const [spots, setSpots]       = useState<Spot[]>(MOCK_SPOTS)
+export default function ConstellationMap({ embedded = false, onOpenStories, spots: spotsProp }: { embedded?: boolean; onOpenStories?: (placeName: string) => void; spots?: Spot[] } = {}) {
+  const [loadedSpots, setLoadedSpots] = useState<Spot[]>(MOCK_SPOTS)
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover]       = useState<string | null>(null)
   const [openStory, setOpenStory] = useState<string | null>(null)  // 드로어에서 펼쳐 읽는 사연
@@ -110,14 +110,17 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   tfRef.current = tf
 
   useEffect(() => {
+    if (spotsProp) return  // 외부(앱)에서 spots를 주면 자체 로딩 생략(승인된 제보 포함 목록 사용)
     try {
       const raw = localStorage.getItem(LS_KEY)
       const local: Spot[] = raw ? JSON.parse(raw) : []
       const ids = new Set(local.map(s => s.id))
-      setSpots([...local, ...MOCK_SPOTS.filter(s => !ids.has(s.id))])
+      setLoadedSpots([...local, ...MOCK_SPOTS.filter(s => !ids.has(s.id))])
     } catch { /* mock만 */ }
-  }, [])
+  }, [spotsProp])
 
+  // 외부 prop이 있으면 그걸(승인 제보 포함), 없으면 자체 로딩(mock+로컬) 사용
+  const spots = spotsProp ?? loadedSpots
   const { nodes, edges } = useMemo(() => buildGraph(spots), [spots])
   const fitTf = useMemo(() => fitTransform(nodes), [nodes])
 
@@ -454,7 +457,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
             </header>
 
             {/* 사연 목록 — 여러 개면 제목 목록으로 다 보이고, 클릭하면 하나씩 펼쳐 읽기 */}
-            <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {selSpots.length === 0
                 ? <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(205,210,235,0.5)', textAlign: 'center', marginTop: '30px' }}>아직 사연이 없어요</p>
                 : selSpots.map(s => (

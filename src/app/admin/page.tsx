@@ -14,6 +14,44 @@ const CATEGORY_COLOR: Record<string, string> = {
   사랑: '#C0392B',
 }
 
+// 방문 통계 표시용 캐릭터 id→이름 (page.tsx CHARACTERS와 동일)
+const CHARACTER_NAMES: Record<string, string> = {
+  beer: '맥주', sun: '태양', car: '자동차', wine: '와인',
+  mountain: '산', clock: '시계', pin: '지도핀', music: '음악',
+}
+
+interface VisitorStats {
+  total: number
+  characters: Record<string, number>
+  regions: Record<string, number>
+}
+
+/* 방문 통계 — 캐릭터/지역별 선택 수를 막대로 표시 */
+function StatBars({ title, data, nameOf }: { title: string; data: Record<string, number>; nameOf?: (k: string) => string }) {
+  const rows = Object.entries(data).sort((a, b) => b[1] - a[1])
+  const max = rows.length ? rows[0][1] : 0
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.1em', marginBottom: '10px' }}>{title}</p>
+      {rows.length === 0 ? (
+        <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#DED9D3' }}>아직 없음</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+          {rows.map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '52px', flexShrink: 0, fontFamily: FONT_UI, fontSize: '11px', color: '#6B6560', textAlign: 'right' }}>{nameOf ? nameOf(k) : k}</span>
+              <div style={{ flex: 1, height: '14px', background: '#F0EDE8', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: `${max ? Math.round((v / max) * 100) : 0}%`, height: '100%', background: '#800020', borderRadius: '3px' }} />
+              </div>
+              <span style={{ width: '28px', flexShrink: 0, fontFamily: FONT_UI, fontSize: '11px', fontWeight: 600, color: '#2A2520' }}>{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ────────────────────────────────────────
    상세보기 모달
 ──────────────────────────────────────── */
@@ -446,6 +484,7 @@ function SpotCard({ spot, onApprove, onUnapprove, onDelete }: SpotCardProps) {
 export default function AdminPage() {
   const [spots, setSpots] = useState<Spot[]>([])
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<VisitorStats | null>(null)
   const router = useRouter()
 
   const logout = async () => {
@@ -464,6 +503,11 @@ export default function AdminPage() {
     } finally {
       setLoading(false)
     }
+    // 방문자 통계(캐릭터·지역)
+    try {
+      const r = await fetch('/api/visitor')
+      if (r.ok) setStats(await r.json())
+    } catch { /* ignore */ }
   }, [])
 
   useEffect(() => { void load() }, [load])
@@ -552,6 +596,20 @@ export default function AdminPage() {
             <p style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C0BEBB', letterSpacing: '0.1em', marginTop: '2px' }}>{item.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* 방문자 통계 (캐릭터·지역 선택) */}
+      <div style={{ padding: '18px 20px 20px', borderBottom: '1px solid #EDE9E4' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#8A8480', letterSpacing: '0.08em' }}>방문자 통계</span>
+          <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0BEBB' }}>
+            입장 {stats ? stats.total : '–'}회
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+          <StatBars title="캐릭터" data={stats?.characters ?? {}} nameOf={(k) => CHARACTER_NAMES[k] ?? k} />
+          <StatBars title="지역" data={stats?.regions ?? {}} />
+        </div>
       </div>
 
       {/* 목록 */}
