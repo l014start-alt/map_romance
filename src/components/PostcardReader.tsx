@@ -113,7 +113,7 @@ export default function PostcardReader({ spots, startPlaceName }: { spots: Spot[
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
         <p style={{ fontFamily: FONT_BRAND, fontSize: '26px', color: '#C0BEBB' }}>아직 사연이 없어요</p>
-        <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#DED9D3' }}>‘낭만 기록하기’로 첫 사연을 남겨보세요</p>
+        <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#DED9D3' }}>‘낭만여지도 남기기’로 첫 사연을 남겨보세요</p>
       </div>
     )
   }

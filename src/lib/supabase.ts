@@ -37,6 +37,7 @@ export function rowToSpot(row: Record<string, unknown>): Spot {
     moment: row.moment as string,
     nickname: (row.nickname as string) ?? '',
     title: (row.title as string) ?? undefined,
+    sns: (row.sns as string) ?? undefined,
     imageUrl: (row.image_url as string) ?? undefined,
     approved: row.approved as boolean,
     createdAt: row.created_at as string,

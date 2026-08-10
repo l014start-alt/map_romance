@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { placeName, address, lat, lng, category, moment, nickname, title } = body
+  const { placeName, address, lat, lng, category, moment, nickname, title, sns } = body
 
   if (!placeName?.trim()) {
     return NextResponse.json({ error: '장소명은 필수입니다.' }, { status: 400 })
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     moment: (moment as string).trim(),
     nickname: (nickname as string | undefined)?.trim() || null,
     title: (title as string | undefined)?.trim() || null,
+    sns: (sns as string | undefined)?.trim() || null,
     approved: false,
     created_at: new Date().toISOString(),
   }

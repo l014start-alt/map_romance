@@ -18,6 +18,7 @@ interface RecordModalProps {
     moment: string
     nickname: string
     title?: string
+    sns?: string
     imageUrl?: string
     password?: string
   }) => Promise<void>
@@ -32,6 +33,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
   const [address, setAddress]       = useState(pin?.address ?? '')
   const [category, setCategory]     = useState<Category | null>(null)
   const [title, setTitle]           = useState('')
+  const [sns, setSns]               = useState('')
   const [moment, setMoment]         = useState('')
   const [password, setPassword]     = useState('')
   const [imageUrl, setImageUrl]     = useState<string | undefined>()
@@ -105,6 +107,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
         category, moment: moment.trim(),
         nickname: nickname.trim(),
         title: title.trim() || undefined,
+        sns: sns.trim() || undefined,
         imageUrl,
         password: password || undefined,
       })
@@ -235,6 +238,18 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '16px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
             <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#C8C4C0', marginTop: '8px', letterSpacing: '0.02em' }}>
               이름 또는 닉네임으로 기록에 남겨드려요.
+            </p>
+          </div>
+
+          {/* SNS */}
+          <div>
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>
+              SNS <span style={{ color: '#DED9D3' }}>(선택)</span>
+            </label>
+            <input type="text" value={sns} onChange={(e) => setSns(e.target.value)} placeholder="인스타그램 아이디 또는 블로그 주소" maxLength={100}
+              style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#C8C4C0', marginTop: '8px', letterSpacing: '0.02em' }}>
+              남겨주시면 사연과 함께 소개돼요.
             </p>
           </div>
 

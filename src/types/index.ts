@@ -11,6 +11,7 @@ export interface Spot {
   title?: string
   category: Category
   moment: string            // 최대 500자
+  sns?: string              // 인스타/블로그 등 SNS 아이디 또는 링크(선택)
   imageUrl?: string         // base64 data URL(업로드) 또는 외부 URL(목업), localStorage 전용
   approved: boolean
   createdAt: string

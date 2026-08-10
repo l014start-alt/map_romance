@@ -232,14 +232,14 @@ export default function App() {
   const handleSubmit = useCallback(async (data: {
     placeName: string; address?: string; lat?: number; lng?: number
     category: Category; moment: string; nickname: string
-    title?: string; imageUrl?: string; password?: string
+    title?: string; sns?: string; imageUrl?: string; password?: string
   }) => {
     const newSpot: Spot = {
       id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       placeName: data.placeName, address: data.address,
       lat: data.lat, lng: data.lng,
       category: data.category, moment: data.moment,
-      nickname: data.nickname, title: data.title,
+      nickname: data.nickname, title: data.title, sns: data.sns,
       imageUrl: data.imageUrl, password: data.password,
       approved: true, createdAt: new Date().toISOString(),
     }
@@ -260,7 +260,7 @@ export default function App() {
         placeName: data.placeName, address: data.address,
         lat: data.lat, lng: data.lng,
         category: data.category, moment: data.moment,
-        nickname: data.nickname, title: data.title,
+        nickname: data.nickname, title: data.title, sns: data.sns,
       }),
     }).catch(() => {})
   }, [])
@@ -419,7 +419,7 @@ export default function App() {
               {/* 기록하기 */}
               <button onClick={startPicking} style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '17px' : '0', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: isDesktop ? '9px 20px' : '9px', borderRadius: isDesktop ? '10px' : '50%', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(128,0,32,0.22)', cursor: 'pointer', flexShrink: 0 }}>
                 <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
-                {isDesktop ? '낭만 기록하기' : ''}
+                {isDesktop ? '낭만여지도 남기기' : ''}
               </button>
             </div>
           </div>
@@ -481,7 +481,7 @@ export default function App() {
             </div>
             <button onClick={startPicking} style={{ fontFamily: FONT_BRAND, fontSize: '18px', letterSpacing: '0.04em', color: '#FAF8F5', background: '#800020', padding: '11px 24px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(128,0,32,0.24)', cursor: 'pointer', flexShrink: 0 }}>
               <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" /></svg>
-              낭만 기록하기
+              낭만여지도 남기기
             </button>
           </div>
         </header>
@@ -491,7 +491,7 @@ export default function App() {
           {gallerySpots.length === 0 ? (
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
               <p style={{ fontFamily: FONT_BRAND, fontSize: '26px', color: '#C0BEBB' }}>아직 사연이 없어요</p>
-              <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#DED9D3' }}>‘낭만 기록하기’로 첫 사연을 남겨보세요</p>
+              <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#DED9D3' }}>‘낭만여지도 남기기’로 첫 사연을 남겨보세요</p>
             </div>
           ) : (
             <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '32px 40px 64px' }}>
@@ -587,7 +587,7 @@ export default function App() {
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                   <line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" />
                 </svg>
-                낭만 기록하기
+                낭만여지도 남기기
               </button>
             </div>
           )}

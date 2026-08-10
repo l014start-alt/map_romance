@@ -98,13 +98,16 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
   const [spots, setSpots]       = useState<Spot[]>(MOCK_SPOTS)
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover]       = useState<string | null>(null)
+  const [openStory, setOpenStory] = useState<string | null>(null)  // 드로어에서 펼쳐 읽는 사연
   // 초기 줌/팬 = 별무리에 맞춘 fit 뷰(MOCK_SPOTS 기준, 첫 렌더부터 프레이밍)
   const [tf, setTf]             = useState<Tf>(() => fitTransform(buildGraph(MOCK_SPOTS).nodes))
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)  // 드래그 직후 발생하는 click 무시
-  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())  // 활성 포인터(멀티터치)
-  const pinch = useRef<{ dist: number; mx: number; my: number } | null>(null) // 직전 핀치 상태
+  const touchPan = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
+  const touchPinch = useRef<{ dist: number; mx: number; my: number } | null>(null)
+  const tfRef = useRef(tf)  // 최신 트랜스폼(네이티브 터치 핸들러에서 참조)
+  tfRef.current = tf
 
   useEffect(() => {
     try {
@@ -202,61 +205,92 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
     return () => svg.removeEventListener('wheel', onWheel)
   }, [])
 
-  // 포인터 캡처는 쓰지 않음(캡처하면 click 타깃이 노드가 아니라 SVG로 잡혀 선택이 안 됨)
-  const beginPinch = () => {
-    const pts = Array.from(pointers.current.values())
-    if (pts.length < 2) return
-    const [a, b] = pts
-    pinch.current = { dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }
-  }
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    if (pointers.current.size >= 2) {         // 두 손가락 이상 → 팬 멈추고 핀치 시작
-      drag.current = null
-      beginPinch()
-    } else {
-      drag.current = { sx: e.clientX, sy: e.clientY, tx: tf.tx, ty: tf.ty, moved: false }
+  // 터치(모바일): 한 손가락 팬 + 두 손가락 핀치 줌/축소 — 네이티브 이벤트로 안정 처리
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const d2 = (a: Touch, b: Touch) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+    const scaleOf = () => svg.getScreenCTM()?.a || 1
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        touchPan.current = null
+        const a = e.touches[0], b = e.touches[1]
+        touchPinch.current = { dist: d2(a, b), mx: (a.clientX + b.clientX) / 2, my: (a.clientY + b.clientY) / 2 }
+      } else if (e.touches.length === 1) {
+        const t = e.touches[0]
+        touchPan.current = { sx: t.clientX, sy: t.clientY, tx: tfRef.current.tx, ty: tfRef.current.ty, moved: false }
+        touchPinch.current = null
+      }
     }
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2 && touchPinch.current) {   // ── 두 손가락 핀치(확대·축소) ──
+        e.preventDefault()
+        const a = e.touches[0], b = e.touches[1]
+        const dist = d2(a, b)
+        const mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2
+        const prev = touchPinch.current
+        if (prev.dist > 0) {
+          const p = clientToSvg(mx, my)
+          zoomAt(p.x, p.y, dist / prev.dist)               // 손가락 간 거리 비율 = 배율(양방향)
+          const s = scaleOf()
+          setTf(cur => ({ ...cur, tx: cur.tx + (mx - prev.mx) / s, ty: cur.ty + (my - prev.my) / s }))
+        }
+        touchPinch.current = { dist, mx, my }
+        suppressClick.current = true
+      } else if (e.touches.length === 1 && touchPan.current) {  // ── 한 손가락 팬 ──
+        const t = e.touches[0]
+        const d = touchPan.current
+        const s = scaleOf()
+        const dx = (t.clientX - d.sx) / s, dy = (t.clientY - d.sy) / s
+        if (Math.abs(t.clientX - d.sx) + Math.abs(t.clientY - d.sy) > 4) { d.moved = true; suppressClick.current = true; e.preventDefault() }
+        setTf(cur => ({ ...cur, tx: d.tx + dx, ty: d.ty + dy }))
+      }
+    }
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length === 0) { touchPan.current = null; touchPinch.current = null }
+      else if (e.touches.length === 1) {                   // 두 손가락→한 손가락: 팬 재개
+        touchPinch.current = null
+        const t = e.touches[0]
+        touchPan.current = { sx: t.clientX, sy: t.clientY, tx: tfRef.current.tx, ty: tfRef.current.ty, moved: true }
+      } else {
+        const a = e.touches[0], b = e.touches[1]
+        touchPinch.current = { dist: d2(a, b), mx: (a.clientX + b.clientX) / 2, my: (a.clientY + b.clientY) / 2 }
+      }
+    }
+    svg.addEventListener('touchstart', onStart, { passive: false })
+    svg.addEventListener('touchmove', onMove, { passive: false })
+    svg.addEventListener('touchend', onEnd)
+    svg.addEventListener('touchcancel', onEnd)
+    return () => {
+      svg.removeEventListener('touchstart', onStart)
+      svg.removeEventListener('touchmove', onMove)
+      svg.removeEventListener('touchend', onEnd)
+      svg.removeEventListener('touchcancel', onEnd)
+    }
+  }, [])
+
+  // ── 마우스 팬(데스크탑) ── 터치는 아래 네이티브 터치 핸들러가 처리.
+  // 포인터 캡처는 쓰지 않음(캡처하면 click 타깃이 노드가 아니라 SVG로 잡혀 선택이 안 됨)
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return
+    drag.current = { sx: e.clientX, sy: e.clientY, tx: tf.tx, ty: tf.ty, moved: false }
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!pointers.current.has(e.pointerId)) return
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (e.pointerType !== 'mouse') return
+    const d = drag.current
+    if (!d) return
+    if (!(e.buttons & 1)) { drag.current = null; return }  // 버튼이 떼어졌으면 종료
     const svg = svgRef.current
     const s = svg?.getScreenCTM()?.a || 1
-
-    if (pointers.current.size >= 2) {         // ── 핀치 줌 + 두 손가락 팬 ──
-      const [a, b] = Array.from(pointers.current.values())
-      const dist = Math.hypot(a.x - b.x, a.y - b.y)
-      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
-      const prev = pinch.current
-      if (prev && prev.dist > 0) {
-        const p = clientToSvg(mx, my)
-        zoomAt(p.x, p.y, dist / prev.dist)    // 손가락 간 거리 변화만큼 확대/축소
-        const dmx = (mx - prev.mx) / s, dmy = (my - prev.my) / s
-        setTf(cur => ({ ...cur, tx: cur.tx + dmx, ty: cur.ty + dmy }))  // 중심 이동만큼 팬
-      }
-      pinch.current = { dist, mx, my }
-      suppressClick.current = true            // 핀치 뒤 탭 선택 방지
-      return
-    }
-
-    const d = drag.current                    // ── 단일 포인터 팬 ──
-    if (!d) return
     const dx = (e.clientX - d.sx) / s, dy = (e.clientY - d.sy) / s
     if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 4) d.moved = true
     setTf(cur => ({ ...cur, tx: d.tx + dx, ty: d.ty + dy }))
   }
   const onPointerUp = (e: React.PointerEvent) => {
-    pointers.current.delete(e.pointerId)
-    if (pointers.current.size < 2) pinch.current = null
-    if (pointers.current.size === 1) {        // 한 손가락만 남으면 그 손가락으로 팬 재개
-      const [rest] = Array.from(pointers.current.values())
-      drag.current = { sx: rest.x, sy: rest.y, tx: tf.tx, ty: tf.ty, moved: true }
-    } else if (pointers.current.size === 0) {
-      if (drag.current?.moved) suppressClick.current = true  // 팬/핀치 직후 click은 무시
-      drag.current = null
-    }
+    if (e.pointerType !== 'mouse') return
+    if (drag.current?.moved) suppressClick.current = true  // 팬 직후 click은 무시
+    drag.current = null
   }
   const zoomBtn = (mult: number) => zoomAt(500, 500, mult)
   const reset = () => setTf(fitTf)   // 처음 위치 = 별무리 fit 뷰
@@ -406,6 +440,11 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontFamily: FONT_BRAND, fontSize: '24px', color: '#EFE3C4', lineHeight: 1.2, wordBreak: 'keep-all' }}>{sel.placeName}</p>
                   <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(205,210,235,0.5)', marginTop: '6px', letterSpacing: '0.04em' }}>사연 {selSpots.length}개 · 연결 {sel.links}곳</p>
+                  <a href={`https://map.naver.com/v5/search/${encodeURIComponent(sel.placeName)}`} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(126,209,174,0.92)', marginTop: '9px', textDecoration: 'none' }}>
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2C6.5 2 4 4.6 4 8c0 4.2 6 10 6 10s6-5.8 6-10c0-3.4-2.5-6-6-6Z" /><circle cx="10" cy="8" r="2" /></svg>
+                    네이버 지도에서 보기
+                  </a>
                 </div>
                 <button onClick={() => setSelected(null)} aria-label="닫기"
                   style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(235,238,250,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -414,11 +453,16 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
               </div>
             </header>
 
-            {/* 사연 목록 */}
-            <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* 사연 목록 — 여러 개면 제목 목록으로 다 보이고, 클릭하면 하나씩 펼쳐 읽기 */}
+            <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {selSpots.length === 0
                 ? <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(205,210,235,0.5)', textAlign: 'center', marginTop: '30px' }}>아직 사연이 없어요</p>
-                : selSpots.map(s => <StoryCardDark key={s.id} spot={s} />)}
+                : selSpots.map(s => (
+                    <StoryCardDark key={s.id} spot={s}
+                      single={selSpots.length === 1}
+                      expanded={selSpots.length === 1 || openStory === s.id}
+                      onToggle={() => setOpenStory(prev => (prev === s.id ? null : s.id))} />
+                  ))}
             </div>
 
             {/* 푸터 — 엽서 리더로 크게 보기 */}
@@ -443,27 +487,53 @@ function formatDate(iso: string) {
   const d = new Date(iso)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
-function StoryCardDark({ spot }: { spot: Spot }) {
+function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expanded: boolean; single: boolean; onToggle: () => void }) {
   const color = CAT_COLOR[spot.category] ?? '#EFE3C4'
   return (
-    <article style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
-      {spot.imageUrl && (
-        <div style={{ width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={spot.imageUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        </div>
-      )}
-      <div style={{ padding: '14px 16px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+    <article style={{ background: expanded ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.035)', border: `1px solid ${expanded ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '12px', overflow: 'hidden', transition: 'background 0.2s, border-color 0.2s' }}>
+      {/* 헤더 — 클릭하면 펼침/접힘 (사연 1개면 항상 펼침) */}
+      <button type="button" onClick={single ? undefined : onToggle} aria-expanded={expanded}
+        style={{ width: '100%', textAlign: 'left', padding: '13px 15px', background: 'transparent', border: 'none', cursor: single ? 'default' : 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '10px', color, letterSpacing: '0.1em' }}>
             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
           </span>
           <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: 'rgba(205,210,235,0.4)' }}>{formatDate(spot.createdAt)}</span>
         </div>
-        {spot.title && <p style={{ fontFamily: FONT_BRAND, fontSize: '19px', color: '#F3EEE0', lineHeight: 1.3, marginBottom: '3px', wordBreak: 'keep-all' }}>{spot.title}</p>}
-        <p style={{ fontFamily: FONT_BRAND, fontSize: '12px', color: 'rgba(205,210,235,0.45)', marginBottom: '10px' }}>by {spot.nickname || '익명'}</p>
-        <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(224,228,244,0.82)', lineHeight: 1.85, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.moment}</p>
-      </div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+          <p style={{ flex: 1, fontFamily: FONT_BRAND, fontSize: '18px', color: '#F3EEE0', lineHeight: 1.3, wordBreak: 'keep-all' }}>{spot.title || '무제'}</p>
+          {!single && (
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="rgba(205,210,235,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ flexShrink: 0, marginTop: '4px', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <polyline points="5,8 10,13 15,8" />
+            </svg>
+          )}
+        </div>
+        {/* 접힘 상태: 미리보기 2줄 */}
+        {!expanded && (
+          <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(205,210,235,0.5)', lineHeight: 1.6, marginTop: '6px', wordBreak: 'keep-all',
+            overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            {spot.moment}
+          </p>
+        )}
+      </button>
+
+      {/* 펼침 상태: 본문 전체 */}
+      {expanded && (
+        <div style={{ padding: '0 15px 16px' }}>
+          {spot.imageUrl && (
+            <div style={{ width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', marginBottom: '12px' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={spot.imageUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
+          )}
+          <p style={{ fontFamily: FONT_BRAND, fontSize: '12px', color: 'rgba(205,210,235,0.45)', marginBottom: '10px' }}>by {spot.nickname || '익명'}</p>
+          <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(224,228,244,0.82)', lineHeight: 1.85, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.moment}</p>
+          {spot.sns && (
+            <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(150,178,235,0.8)', marginTop: '13px', wordBreak: 'break-all' }}>🔗 {spot.sns}</p>
+          )}
+        </div>
+      )}
     </article>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
+import QRCode from './QRCode'
 
 export interface PinData {
   lat: number
@@ -36,6 +37,9 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
   const [results, setResults]   = useState<SearchResult[]>([])
   const [error, setError]       = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [siteUrl, setSiteUrl]   = useState('')  // QR용 현재 사이트 주소(모바일 접속)
+
+  useEffect(() => { setSiteUrl(window.location.origin) }, [])
 
   const search = async () => {
     if (!query.trim() || searching) return
@@ -260,6 +264,21 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
         >
           취소
         </button>
+      )}
+
+      {/* 데스크탑(전시 키오스크) — 휴대폰으로 작성하도록 QR + 안내 */}
+      {desktop && siteUrl && (
+        <div style={{ marginTop: '22px', paddingTop: '20px', borderTop: '1px solid #EDE9E4', display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{ padding: '8px', background: '#FFFFFF', borderRadius: '10px', border: '1px solid #EDE9E4', flexShrink: 0 }}>
+            <QRCode value={siteUrl} size={104} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontFamily: 'var(--font-brand)', fontSize: '16px', color: '#800020', lineHeight: 1.3, marginBottom: '6px' }}>휴대폰으로 편하게 남기기</p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '11.5px', color: '#8A8480', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+              이 자리에서 바로 작성하셔도 좋고, QR을 휴대폰으로 스캔하면 내 자리에서 천천히 사연을 남길 수 있어요.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   )
