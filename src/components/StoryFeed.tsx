@@ -31,8 +31,9 @@ function SpotMiniMap({ spot }: { spot: Spot }) {
       const pos = new n.maps.LatLng(spot.lat!, spot.lng!)
       map = new n.maps.Map(ref.current, {
         center: pos, zoom: 16,
-        logoControl: false, mapDataControl: false, scaleControl: false,
-        zoomControl: true,
+        logoControl: false, mapDataControl: false, scaleControl: false, zoomControl: false,
+        // 클릭 시 네이버 지도로 넘어가므로 미리보기는 정적으로(조작 비활성)
+        draggable: false, scrollWheel: false, pinchZoom: false, keyboardShortcuts: false, disableDoubleClickZoom: true,
       })
       new n.maps.Marker({ position: pos, map })
     }
@@ -48,7 +49,20 @@ function SpotMiniMap({ spot }: { spot: Spot }) {
       </div>
     )
   }
-  return <div ref={ref} style={{ width: '100%', height: '100%' }} />
+  const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(spot.placeName)}`
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div ref={ref} style={{ width: '100%', height: '100%' }} />
+      {/* 지도 전체를 네이버 지도 링크로 — 클릭하면 바로 네이버 지도로 */}
+      <a href={naverUrl} target="_blank" rel="noopener noreferrer" aria-label="네이버 지도에서 열기"
+        style={{ position: 'absolute', inset: 0, zIndex: 4, display: 'block', cursor: 'pointer' }}>
+        <span style={{ position: 'absolute', right: '12px', bottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#03C75A', color: '#FFFFFF', fontFamily: FONT_UI, fontSize: '11px', fontWeight: 700, padding: '7px 12px', borderRadius: '99px', boxShadow: '0 2px 10px rgba(0,0,0,0.22)' }}>
+          네이버 지도에서 열기
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M7 5h8v8" /><path d="M15 5 5 15" /></svg>
+        </span>
+      </a>
+    </div>
+  )
 }
 
 /* ── 상세: 좌 지도 / 우 내용 ── */
@@ -70,7 +84,7 @@ function StoryDetail({ spot, desktop, onBack }: { spot: Spot; desktop: boolean; 
         <div style={{ position: 'relative', flexShrink: 0, width: desktop ? '48%' : '100%', height: desktop ? 'auto' : '300px', borderRight: desktop ? '1px solid #EDE9E4' : 'none', borderBottom: desktop ? 'none' : '1px solid #EDE9E4', background: '#F0EDE8' }}>
           <SpotMiniMap spot={spot} />
           {/* 장소 이름 오버레이 */}
-          <div style={{ position: 'absolute', left: '14px', top: '14px', zIndex: 5, background: 'rgba(250,248,245,0.95)', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 2px 10px rgba(0,0,0,0.12)', maxWidth: 'calc(100% - 28px)' }}>
+          <div style={{ position: 'absolute', left: '14px', top: '14px', zIndex: 5, pointerEvents: 'none', background: 'rgba(250,248,245,0.95)', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 2px 10px rgba(0,0,0,0.12)', maxWidth: 'calc(100% - 28px)' }}>
             <p style={{ fontFamily: FONT_BRAND, fontSize: '16px', color: '#800020', lineHeight: 1.2, wordBreak: 'keep-all' }}>{spot.placeName}</p>
             {spot.address && <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#8A8480', marginTop: '3px', wordBreak: 'keep-all' }}>{spot.address}</p>}
           </div>
