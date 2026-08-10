@@ -273,9 +273,9 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
             <QRCode value={siteUrl} size={104} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontFamily: 'var(--font-brand)', fontSize: '16px', color: '#800020', lineHeight: 1.3, marginBottom: '6px' }}>휴대폰으로 편하게 남기기</p>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '11.5px', color: '#8A8480', lineHeight: 1.7, wordBreak: 'keep-all' }}>
-              이 자리에서 바로 작성하셔도 좋고, QR을 휴대폰으로 스캔하면 내 자리에서 천천히 사연을 남길 수 있어요.
+            <p style={{ fontFamily: 'var(--font-brand)', fontSize: '19px', color: '#800020', lineHeight: 1.3, marginBottom: '8px' }}>자리에서 휴대폰으로 작성하기</p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#4A443E', lineHeight: 1.75, wordBreak: 'keep-all', fontWeight: 500 }}>
+              데스크탑이 한 대뿐이라 여러 분이 함께 이용해요. QR을 휴대폰으로 스캔하시면 내 자리에서 더 편하게 사연을 남길 수 있어요.
             </p>
           </div>
         </div>
