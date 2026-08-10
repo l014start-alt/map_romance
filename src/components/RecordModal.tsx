@@ -126,7 +126,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
         <p style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#B5B0AB', lineHeight: 1.9, marginTop: '12px', textAlign: 'center', wordBreak: 'keep-all' }}>
           지도 위에 핀이 꽂혔어요.<br />낭만을 남겨주셔서 감사해요.
         </p>
-        <button onClick={onClose} style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#C0BEBB', letterSpacing: '0.06em', borderBottom: '1px solid #EDE9E4', paddingBottom: '1px', marginTop: '40px', cursor: 'pointer' }}>닫기</button>
+        <button onClick={onClose} style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#867F79', letterSpacing: '0.06em', borderBottom: '1px solid #EDE9E4', paddingBottom: '1px', marginTop: '40px', cursor: 'pointer' }}>닫기</button>
       </div>
     </div>
   )
@@ -148,7 +148,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 600, color: '#800020', letterSpacing: '0.04em' }}>낭만여지도</span>
             <span style={{ color: '#DED9D3', fontSize: '11px' }}>·</span>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#C0BEBB', letterSpacing: '0.04em' }}>기록하기</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#867F79', letterSpacing: '0.04em' }}>기록하기</span>
           </div>
           <button onClick={onClose} aria-label="닫기" style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B5B0AB', cursor: 'pointer' }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -173,8 +173,8 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
           {/* 사진 첨부 — 폼 맨 위에 배치해 시인성 확보 */}
           <div>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '12px' }}>
-              사진 첨부 <span style={{ color: '#DED9D3' }}>(선택)</span>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '12px' }}>
+              사진 첨부 <span style={{ color: '#A89F98' }}>(선택)</span>
             </p>
             {/* 숨겨진 file input */}
             <input
@@ -218,7 +218,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
                 disabled={compressing}
                 style={{ width: '100%', padding: '24px 16px', border: '1.5px dashed #DED9D3', borderRadius: '8px', background: '#FDFBF8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: compressing ? 'default' : 'pointer', transition: 'border-color 0.2s' }}
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C0BEBB" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#867F79" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21,15 16,10 5,21" />
@@ -226,44 +226,44 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: compressing ? '#DED9D3' : '#B5B0AB', letterSpacing: '0.04em' }}>
                   {compressing ? '처리 중…' : '사진을 첨부하려면 탭하세요'}
                 </span>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#DED9D3' }}>JPG · PNG · HEIC</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#A89F98' }}>JPG · PNG · HEIC</span>
               </button>
             )}
           </div>
 
           {/* 닉네임 */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>이름 또는 닉네임</label>
-            <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="남기고 싶은 이름" maxLength={20}
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>이름 또는 닉네임</label>
+            <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="" maxLength={20}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '16px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#C8C4C0', marginTop: '8px', letterSpacing: '0.02em' }}>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#8C857F', marginTop: '8px', letterSpacing: '0.02em' }}>
               이름 또는 닉네임으로 기록에 남겨드려요.
             </p>
           </div>
 
           {/* SNS */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>
-              SNS <span style={{ color: '#DED9D3' }}>(선택)</span>
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>
+              인스타그램 아이디 <span style={{ color: '#A89F98' }}>(선택)</span>
             </label>
-            <input type="text" value={sns} onChange={(e) => setSns(e.target.value)} placeholder="인스타그램 아이디 또는 블로그 주소" maxLength={100}
+            <input type="text" value={sns} onChange={(e) => setSns(e.target.value)} placeholder="@ 없이 아이디만 (예: nangman_love)" maxLength={100}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#C8C4C0', marginTop: '8px', letterSpacing: '0.02em' }}>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#8C857F', marginTop: '8px', letterSpacing: '0.02em' }}>
               남겨주시면 사연과 함께 소개돼요.
             </p>
           </div>
 
           {/* 장소명 */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>장소명</label>
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>장소명</label>
             <input type="text" value={placeName} onChange={(e) => setPlaceName(e.target.value)} placeholder="기억 속 그 장소의 이름" maxLength={60}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '16px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
           </div>
 
           {/* 주소 */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>
-              주소 <span style={{ color: '#DED9D3' }}>(자동입력 · 수정 가능)</span>
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>
+              주소 <span style={{ color: '#A89F98' }}>(자동입력 · 수정 가능)</span>
             </label>
             <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="도로명 또는 지번 주소" maxLength={100}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#6B6560', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
@@ -271,13 +271,13 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
           {/* 카테고리 */}
           <div>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '18px' }}>카테고리</p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '18px' }}>카테고리</p>
             <div style={{ display: 'flex', gap: '32px' }}>
               {CATEGORIES.map((c) => {
                 const active = category === c
                 return (
                   <button key={c} type="button" onClick={() => setCategory(active ? null : c)} aria-pressed={active}
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: active ? 500 : 400, color: active ? '#111' : '#C0BEBB', paddingBottom: '4px', borderBottom: active ? '1.5px solid #111' : '1.5px solid transparent', transition: 'all 0.2s', cursor: 'pointer' }}>
+                    style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: active ? 500 : 400, color: active ? '#111' : '#867F79', paddingBottom: '4px', borderBottom: active ? '1.5px solid #111' : '1.5px solid transparent', transition: 'all 0.2s', cursor: 'pointer' }}>
                     {c}
                   </button>
                 )
@@ -287,7 +287,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
           {/* 제목 */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>
               제목 <span style={{ color: '#800020' }}>*</span>
             </label>
             <input
@@ -295,7 +295,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
               type="text"
               value={title}
               onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError('') }}
-              placeholder="이 순간을 한 문장으로"
+              placeholder=""
               maxLength={60}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-brand)', fontSize: '18px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: `1px solid ${titleError ? '#800020' : '#EDE9E4'}` }}
             />
@@ -308,12 +308,12 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
           {/* 순간 기록 */}
           <div>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>장소에 대한 사연</p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>장소에 대한 사연</p>
             <textarea ref={textareaRef} value={moment} onChange={handleMomentChange}
               placeholder="이 장소에 대한 여러분의 사연을 적어주세요." rows={4}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#111', lineHeight: 2.0, borderBottom: '1px solid #EDE9E4', paddingBottom: '12px', outline: 'none', resize: 'none', minHeight: '96px', wordBreak: 'keep-all' }} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: moment.length >= MOMENT_MAX ? '#800020' : '#C8C4C0' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: moment.length >= MOMENT_MAX ? '#800020' : '#8C857F' }}>
                 {moment.length} / {MOMENT_MAX}
               </span>
             </div>
@@ -321,8 +321,8 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
           {/* 비밀번호 */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.18em', marginBottom: '14px' }}>
-              비밀번호 <span style={{ color: '#DED9D3' }}>(숫자 4자리 · 수정·삭제 시 필요)</span>
+            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>
+              비밀번호 <span style={{ color: '#A89F98' }}>(숫자 4자리 · 수정·삭제 시 필요)</span>
             </label>
             <input type="password" inputMode="numeric" value={password} onChange={handlePasswordChange} placeholder="• • • •" maxLength={4}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '20px', letterSpacing: '0.3em', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
@@ -330,7 +330,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
           {/* 제출 */}
           <button type="submit" disabled={!canSubmit}
-            style={{ width: '100%', padding: '16px', fontFamily: 'var(--font-sans)', fontSize: '13px', letterSpacing: '0.1em', cursor: canSubmit ? 'pointer' : 'default', background: canSubmit ? '#111' : 'transparent', color: canSubmit ? '#FAF8F5' : '#C8C4C0', border: canSubmit ? '1px solid #111' : '1px solid #EDE9E4', transition: 'all 0.3s' }}>
+            style={{ width: '100%', padding: '16px', fontFamily: 'var(--font-sans)', fontSize: '13px', letterSpacing: '0.1em', cursor: canSubmit ? 'pointer' : 'default', background: canSubmit ? '#111' : 'transparent', color: canSubmit ? '#FAF8F5' : '#8C857F', border: canSubmit ? '1px solid #111' : '1px solid #EDE9E4', transition: 'all 0.3s' }}>
             {submitting ? '등록 중…' : '기록하기'}
           </button>
 
