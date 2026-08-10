@@ -26,7 +26,7 @@ interface Node {
 }
 
 const VB = 1000
-const MIN_K = 0.7, MAX_K = 48   // 모바일에서 도심 밀집 구역까지 깊게 확대(터치 쉽게)
+const MIN_K = 0.7, MAX_K = 96   // 모바일에서 도심 밀집 구역까지 깊게 확대(터치 쉽게)
 
 function mulberry32(a: number) {
   return function () {
