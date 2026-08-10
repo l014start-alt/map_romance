@@ -246,7 +246,7 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
             <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>
               인스타그램 아이디 <span style={{ color: '#A89F98' }}>(선택)</span>
             </label>
-            <input type="text" value={sns} onChange={(e) => setSns(e.target.value)} placeholder="@ 없이 아이디만 (예: nangman_love)" maxLength={100}
+            <input type="text" value={sns} onChange={(e) => setSns(e.target.value)} placeholder="@ 없이 아이디만 (예: romanceyouthlove_daegu)" maxLength={100}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4' }} />
             <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#8C857F', marginTop: '8px', letterSpacing: '0.02em' }}>
               남겨주시면 사연과 함께 소개돼요.
