@@ -9,7 +9,7 @@ import PlacePreviewCard from '@/components/PlacePreviewCard'
 import SpotSheet from '@/components/SpotSheet'
 import FeedView from '@/components/FeedView'
 import Footer from '@/components/Footer'
-import PostcardReader from '@/components/PostcardReader'   // 엽서 리더(사연 한 장씩)
+import StoryFeed from '@/components/StoryFeed'             // 사연 피드(시간순 그리드 + 좌지도/우내용)
 import ConstellationMap from '@/components/ConstellationMap' // 별자리 지도(지도로 보기)
 import { Spot, Category, LocationGroup } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
@@ -434,7 +434,7 @@ export default function App() {
         {/* 본문 */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           {isRead
-            ? <PostcardReader spots={readerSpots} startPlaceName={readerStart ?? undefined} />
+            ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
         </div>
 
