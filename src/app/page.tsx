@@ -807,10 +807,38 @@ function VisitorBadge({ characterId, region, compact = false }: { characterId: s
   )
 }
 
+/* ── 타자 치듯 한 글자씩 나타나는 효과(너무 빠르지 않게, 문장부호에서 잠깐 쉼) ── */
+function useTypewriter(text: string, speed: number, startDelay = 0, enabled = true) {
+  const [out, setOut] = useState('')
+  useEffect(() => {
+    if (!enabled) return
+    setOut('')
+    let i = 0
+    let t: ReturnType<typeof setTimeout>
+    const step = () => {
+      i += 1
+      setOut(text.slice(0, i))
+      if (i >= text.length) return
+      const prev = text[i - 1]
+      t = setTimeout(step, /[.,·…?!\n]/.test(prev) ? speed * 6 : speed)
+    }
+    t = setTimeout(step, startDelay)
+    return () => clearTimeout(t)
+  }, [text, speed, startDelay, enabled])
+  return out
+}
+
 /* ── D안: 입장 직후 환영 인트로 (캐릭터·지역 활용, 담백/여백 중심) ── */
 function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: string; region: string; onEnter: () => void; onBack: () => void }) {
   const ch = getCharacter(characterId)
   const [hovered, setHovered] = useState(false)
+  // 환영 문구 → 리드 문장 순서로 타이핑
+  const headingText = `${region}에서 오신 걸\n환영해요`
+  const leadText = '여기, 우리가 머물렀던 이야기들이 지도가 되어 있어요.\n천천히 둘러보세요.'
+  const typedHeading = useTypewriter(headingText, 110, 350)
+  const headingDone = typedHeading.length >= headingText.length
+  const typedLead = useTypewriter(leadText, 62, 250, headingDone)
+  const leadDone = typedLead.length >= leadText.length
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: '#FAF8F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
 
@@ -825,16 +853,16 @@ function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: str
       {/* eyebrow */}
       <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.22em', color: '#B5B0AB', marginBottom: '16px' }}>NANGMAN YEOJIDO</p>
 
-      {/* 환영 문구 — 지역 활용 */}
-      <h1 style={{ fontFamily: FONT_BRAND, fontSize: '38px', lineHeight: 1.3, color: '#800020', wordBreak: 'keep-all', margin: 0 }}>
-        {region}에서 오신 걸<br />환영해요
+      {/* 환영 문구 — 지역 활용 (타자 효과) */}
+      <h1 style={{ fontFamily: FONT_BRAND, fontSize: '38px', lineHeight: 1.3, color: '#800020', wordBreak: 'keep-all', margin: 0, whiteSpace: 'pre-line', minHeight: '99px' }}>
+        {typedHeading}
+        {!headingDone && <span style={{ display: 'inline-block', width: '2px', height: '0.82em', background: '#800020', marginLeft: '3px', verticalAlign: '-0.06em', animation: 'tw-blink 1s step-end infinite' }} />}
       </h1>
 
-      {/* 리드 문장 */}
-      <p style={{ fontFamily: FONT_UI, fontSize: '14px', lineHeight: 2, color: '#8A8480', wordBreak: 'keep-all', maxWidth: '360px', marginTop: '20px' }}>
-        여기, 우리가 머물렀던 이야기들이 지도가 되어 있어요.
-        <br />
-        천천히 둘러보세요.
+      {/* 리드 문장 (타자 효과 — 환영 문구가 끝난 뒤 시작) */}
+      <p style={{ fontFamily: FONT_UI, fontSize: '14px', lineHeight: 2, color: '#8A8480', wordBreak: 'keep-all', maxWidth: '360px', marginTop: '20px', whiteSpace: 'pre-line', minHeight: '56px' }}>
+        {typedLead}
+        {headingDone && !leadDone && <span style={{ display: 'inline-block', width: '2px', height: '0.9em', background: '#B5B0AB', marginLeft: '2px', verticalAlign: '-0.1em', animation: 'tw-blink 1s step-end infinite' }} />}
       </p>
 
       {/* CTA — 지도로 진입 */}

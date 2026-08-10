@@ -439,9 +439,9 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontFamily: FONT_BRAND, fontSize: '24px', color: '#EFE3C4', lineHeight: 1.2, wordBreak: 'keep-all' }}>{sel.placeName}</p>
-                  <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(205,210,235,0.5)', marginTop: '6px', letterSpacing: '0.04em' }}>사연 {selSpots.length}개 · 연결 {sel.links}곳</p>
+                  <p style={{ fontFamily: FONT_UI, fontSize: '12.5px', color: 'rgba(205,210,235,0.55)', marginTop: '7px', letterSpacing: '0.04em' }}>사연 {selSpots.length}개 · 연결 {sel.links}곳</p>
                   <a href={`https://map.naver.com/v5/search/${encodeURIComponent(sel.placeName)}`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(126,209,174,0.92)', marginTop: '9px', textDecoration: 'none' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: FONT_UI, fontSize: '12.5px', color: 'rgba(126,209,174,0.95)', marginTop: '10px', textDecoration: 'none' }}>
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2C6.5 2 4 4.6 4 8c0 4.2 6 10 6 10s6-5.8 6-10c0-3.4-2.5-6-6-6Z" /><circle cx="10" cy="8" r="2" /></svg>
                     네이버 지도에서 보기
                   </a>
@@ -495,13 +495,13 @@ function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expan
       <button type="button" onClick={single ? undefined : onToggle} aria-expanded={expanded}
         style={{ width: '100%', textAlign: 'left', padding: '13px 15px', background: 'transparent', border: 'none', cursor: single ? 'default' : 'pointer' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '10px', color, letterSpacing: '0.1em' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '11px', color, letterSpacing: '0.1em' }}>
             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
           </span>
-          <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: 'rgba(205,210,235,0.4)' }}>{formatDate(spot.createdAt)}</span>
+          <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(205,210,235,0.45)' }}>{formatDate(spot.createdAt)}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-          <p style={{ flex: 1, fontFamily: FONT_BRAND, fontSize: '18px', color: '#F3EEE0', lineHeight: 1.3, wordBreak: 'keep-all' }}>{spot.title || '무제'}</p>
+          <p style={{ flex: 1, fontFamily: FONT_BRAND, fontSize: '21px', color: '#F3EEE0', lineHeight: 1.3, wordBreak: 'keep-all' }}>{spot.title || '무제'}</p>
           {!single && (
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="rgba(205,210,235,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               style={{ flexShrink: 0, marginTop: '4px', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -511,7 +511,7 @@ function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expan
         </div>
         {/* 접힘 상태: 미리보기 2줄 */}
         {!expanded && (
-          <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(205,210,235,0.5)', lineHeight: 1.6, marginTop: '6px', wordBreak: 'keep-all',
+          <p style={{ fontFamily: FONT_UI, fontSize: '13.5px', color: 'rgba(210,215,238,0.62)', lineHeight: 1.75, marginTop: '7px', wordBreak: 'keep-all',
             overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
             {spot.moment}
           </p>
@@ -527,10 +527,10 @@ function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expan
               <img src={spot.imageUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
           )}
-          <p style={{ fontFamily: FONT_BRAND, fontSize: '12px', color: 'rgba(205,210,235,0.45)', marginBottom: '10px' }}>by {spot.nickname || '익명'}</p>
-          <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(224,228,244,0.82)', lineHeight: 1.85, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.moment}</p>
+          <p style={{ fontFamily: FONT_BRAND, fontSize: '13px', color: 'rgba(205,210,235,0.5)', marginBottom: '11px' }}>by {spot.nickname || '익명'}</p>
+          <p style={{ fontFamily: FONT_UI, fontSize: '15px', color: 'rgba(228,231,246,0.9)', lineHeight: 1.95, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.moment}</p>
           {spot.sns && (
-            <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(150,178,235,0.8)', marginTop: '13px', wordBreak: 'break-all' }}>🔗 {spot.sns}</p>
+            <p style={{ fontFamily: FONT_UI, fontSize: '12.5px', color: 'rgba(150,178,235,0.85)', marginTop: '14px', wordBreak: 'break-all' }}>🔗 {spot.sns}</p>
           )}
         </div>
       )}
