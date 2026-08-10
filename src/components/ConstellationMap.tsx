@@ -299,12 +299,20 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
               )
             })}
 
-            {/* 별(노드) — 화면상 일정 크기로(inv 역보정) */}
+            {/* 별(노드) — 화면상 일정 크기로(inv 역보정). 사연이 많을수록 크고 밝게 + 둘레 링. */}
             {nodes.map((n, i) => {
               const isActive = active === n.key
               const isConn = connectedKeys.has(n.key)
               const dim = active != null && !isActive && !isConn
               const lab = labelLayout.get(n.key) ?? { dx: 0, dy: -20, anchor: 'middle' as const }
+              // 사연 수(count) → 크기·밝기 스케일(sqrt로 완만하게, 상한선 둠)
+              const grow    = Math.sqrt(n.count) - 1               // 1개=0, 3개≈0.73, 9개=2
+              const sizeMul = 1 + Math.min(0.95, grow * 0.5)        // 1 ~ 1.95
+              const glowMul = 1 + Math.min(1.1, grow * 0.6)         // 후광 크기
+              const bright  = Math.min(0.95, 0.5 + (n.count - 1) * 0.12) // 후광 밝기
+              // 사연이 겹겹이 쌓인 곳: 둘레 동심원(2개↑부터, 최대 3겹)
+              const rings   = Math.min(3, Math.max(0, n.count - 1))
+              const coreR   = (isActive ? 3.4 : 2.6) * sizeMul
               return (
                 <g key={n.key} className="const-node" style={{ animationDelay: `${0.3 + i * 0.05}s`, cursor: 'pointer', opacity: dim ? 0.4 : 1, transition: 'opacity 0.2s' }}
                    onClick={(ev) => { ev.stopPropagation(); if (suppressClick.current) { suppressClick.current = false; return } setSelected(prev => prev === n.key ? null : n.key) }}
@@ -312,9 +320,17 @@ export default function ConstellationMap({ embedded = false, onOpenStories }: { 
                    onMouseEnter={() => setHover(n.key)} onMouseLeave={() => setHover(null)}>
                   {/* 넓은 투명 클릭 영역(화면상 ~20px 고정) — 작아도 누르기 쉽게 */}
                   <circle cx={n.x} cy={n.y} r={20 * inv} fill="transparent" />
-                  <circle cx={n.x} cy={n.y} r={(isActive ? 30 : 20) * inv} fill="url(#nodeGlow)" opacity={isActive ? 1 : 0.55} style={{ pointerEvents: 'none' }} />
-                  <circle cx={n.x} cy={n.y} r={(isActive ? 3.4 : 2.6) * inv} fill="#FFF6DC" />
-                  <circle cx={n.x} cy={n.y} r={(isActive ? 1.7 : 1.3) * inv} fill="#FFFFFF" />
+                  {/* 사연 수만큼 둘레에 도는 옅은 링(겹겹이 쌓인 이야기) */}
+                  {Array.from({ length: rings }).map((_, ri) => (
+                    <circle key={ri} className={dim ? undefined : 'const-ring'}
+                      cx={n.x} cy={n.y} r={(coreR + 5 + ri * 4.5) * inv}
+                      fill="none" stroke="#FFF2CE" strokeWidth={0.7 * inv}
+                      opacity={dim ? 0.08 : undefined}
+                      style={{ pointerEvents: 'none', animationDelay: `${ri * 0.5}s` }} />
+                  ))}
+                  <circle cx={n.x} cy={n.y} r={(isActive ? 30 : 20) * glowMul * inv} fill="url(#nodeGlow)" opacity={isActive ? 1 : bright} style={{ pointerEvents: 'none' }} />
+                  <circle cx={n.x} cy={n.y} r={coreR * inv} fill="#FFF6DC" />
+                  <circle cx={n.x} cy={n.y} r={(isActive ? 1.7 : 1.3) * sizeMul * inv} fill="#FFFFFF" />
                   <text x={n.x + lab.dx * inv} y={n.y + lab.dy * inv} textAnchor={lab.anchor}
                         fontFamily="var(--font-sans)" fontSize={(isActive ? 17 : 15) * inv} letterSpacing={0.3 * inv}
                         fill={isActive ? '#FFF7E6' : dim ? '#6a6d8c' : 'rgba(206,212,236,0.82)'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 400 }}>

@@ -78,6 +78,12 @@ body {
   0%, 100% { opacity: 0.35; r: 16; }
   50%      { opacity: 0.12; r: 22; }
 }
+/* 사연이 여러 개 쌓인 장소: 둘레에 도는 옅은 링의 맥동 */
+@keyframes const-ring {
+  0%, 100% { opacity: 0.10; }
+  50%      { opacity: 0.42; }
+}
+.const-ring { animation: const-ring 3.6s ease-in-out infinite; }
 
 /* ── 우측 사연 드로어 슬라이드-인 ── */
 @keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
