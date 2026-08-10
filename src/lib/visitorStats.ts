@@ -35,10 +35,21 @@ export function saveVisitorSelection(characterId: string, region: string): Visit
     /* 프라이빗 모드 등 localStorage 사용 불가 시 무시 */
   }
 
-  // 3) (선택) 백엔드로도 전송 — 아래 스켈레톤 참고. 지금은 비활성.
-  // recordSelectionToBackend(entry)
+  // 3) 백엔드(Supabase)로도 전송 — 통계 집계용. 실패해도 조용히 무시(로컬엔 이미 저장됨).
+  recordSelectionToBackend(entry)
 
   return entry
+}
+
+/** 방문자 선택을 서버(/api/visitor)로 전송 → Supabase visitor_selections 에 누적 */
+function recordSelectionToBackend(entry: VisitorSelection): void {
+  try {
+    fetch('/api/visitor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    }).catch(() => { /* 네트워크 실패 무시 */ })
+  } catch { /* ignore */ }
 }
 
 /** 최근 선택 1건 읽기 (없으면 null) */

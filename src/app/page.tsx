@@ -842,11 +842,11 @@ function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: str
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: '#FAF8F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
 
-      {/* 선택한 캐릭터 — 크게 */}
-      <div className="const-node" style={{ position: 'relative', width: '104px', height: '104px', borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(128,0,32,0.08)', marginBottom: '30px' }}>
+      {/* 선택한 캐릭터 — 크게(약 2배) */}
+      <div className="const-node" style={{ position: 'relative', width: '200px', height: '200px', borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(128,0,32,0.10)', marginBottom: '34px' }}>
         {ch && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={ch.src} alt={ch.name} style={{ width: '58%', height: '58%', objectFit: 'contain' }} />
+          <img src={ch.src} alt={ch.name} style={{ width: '60%', height: '60%', objectFit: 'contain' }} />
         )}
       </div>
 
