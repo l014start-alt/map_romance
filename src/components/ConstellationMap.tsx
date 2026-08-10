@@ -493,7 +493,7 @@ function formatDate(iso: string) {
 function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expanded: boolean; single: boolean; onToggle: () => void }) {
   const color = CAT_COLOR[spot.category] ?? '#EFE3C4'
   return (
-    <article style={{ background: expanded ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.035)', border: `1px solid ${expanded ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '12px', overflow: 'hidden', transition: 'background 0.2s, border-color 0.2s' }}>
+    <article style={{ flexShrink: 0, background: expanded ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.035)', border: `1px solid ${expanded ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '12px', overflow: 'hidden', transition: 'background 0.2s, border-color 0.2s' }}>
       {/* 헤더 — 클릭하면 펼침/접힘 (사연 1개면 항상 펼침) */}
       <button type="button" onClick={single ? undefined : onToggle} aria-expanded={expanded}
         style={{ width: '100%', textAlign: 'left', padding: '13px 15px', background: 'transparent', border: 'none', cursor: single ? 'default' : 'pointer' }}>
