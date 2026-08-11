@@ -14,15 +14,8 @@ const CATEGORY_COLOR: Record<string, string> = {
   사랑: '#C0392B',
 }
 
-// 방문 통계 표시용 캐릭터 id→이름 (page.tsx CHARACTERS와 동일)
-const CHARACTER_NAMES: Record<string, string> = {
-  beer: '맥주', sun: '태양', car: '자동차', wine: '와인',
-  mountain: '산', clock: '시계', pin: '지도핀', music: '음악',
-}
-
 interface VisitorStats {
   total: number
-  characters: Record<string, number>
   regions: Record<string, number>
 }
 
@@ -607,7 +600,6 @@ export default function AdminPage() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-          <StatBars title="캐릭터" data={stats?.characters ?? {}} nameOf={(k) => CHARACTER_NAMES[k] ?? k} />
           <StatBars title="지역" data={stats?.regions ?? {}} />
         </div>
       </div>

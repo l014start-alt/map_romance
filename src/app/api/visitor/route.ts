@@ -5,13 +5,13 @@ import { getAdminSupabase } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
-  const characterId = (body.characterId as string | undefined)?.trim()
   const region = (body.region as string | undefined)?.trim()
-  if (!characterId || !region) {
-    return NextResponse.json({ error: 'characterId, region는 필수입니다.' }, { status: 400 })
+  if (!region) {
+    return NextResponse.json({ error: 'region는 필수입니다.' }, { status: 400 })
   }
+  // 캐릭터 선택은 폐지됨. character_id 컬럼(NOT NULL 대비)은 고정값으로 채운다.
   const row = {
-    character_id: characterId,
+    character_id: (body.characterId as string | undefined)?.trim() || '-',
     region,
     created_at: (body.at as string | undefined) || new Date().toISOString(),
   }

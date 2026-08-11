@@ -6,7 +6,6 @@
    ══════════════════════════════════════════════════════════════ */
 
 export interface VisitorSelection {
-  characterId: string // 선택한 캐릭터 id (예: 'beer')
   region: string      // 선택한 출신 지역 (예: '대구')
   at: string          // 선택 시각 (ISO 문자열)
 }
@@ -40,8 +39,8 @@ export function isCollectionExcluded(): boolean {
  * - CURRENT_KEY: 최근 선택 1건 (헤더 뱃지 등 화면 표시용)
  * - LOG_KEY:     누적 로그 배열 (나중에 "무엇이 가장 많이 선택됐나" 집계용)
  */
-export function saveVisitorSelection(characterId: string, region: string): VisitorSelection {
-  const entry: VisitorSelection = { characterId, region, at: new Date().toISOString() }
+export function saveVisitorSelection(region: string): VisitorSelection {
+  const entry: VisitorSelection = { region, at: new Date().toISOString() }
 
   // 이 기기가 통계 수집 제외(사장님 본인 기기)라면 → 화면 표시용 CURRENT_KEY만 남기고
   // 통계 로그·서버 전송은 건너뛴다.
@@ -91,29 +90,26 @@ export function loadVisitorSelection(): VisitorSelection | null {
 
 /**
  * 로컬 누적 로그를 집계한다.
- * 반환: 캐릭터별/지역별 선택 횟수 + 전체 건수.
- * (관리자 화면 등에서 "가장 많이 선택된 캐릭터/지역"을 뽑을 때 사용)
+ * 반환: 지역별 선택 횟수 + 전체 건수.
+ * (관리자 화면 등에서 "가장 많이 선택된 지역"을 뽑을 때 사용)
  */
 export function tallyVisitorLog(): {
-  characters: Record<string, number>
   regions: Record<string, number>
   total: number
 } {
-  const characters: Record<string, number> = {}
   const regions: Record<string, number> = {}
   let total = 0
   try {
     const raw = localStorage.getItem(LOG_KEY)
     const log: VisitorSelection[] = raw ? JSON.parse(raw) : []
     for (const e of log) {
-      characters[e.characterId] = (characters[e.characterId] ?? 0) + 1
       regions[e.region] = (regions[e.region] ?? 0) + 1
       total++
     }
   } catch {
     /* ignore */
   }
-  return { characters, regions, total }
+  return { regions, total }
 }
 
 /* ──────────────────────────────────────────────────────────────

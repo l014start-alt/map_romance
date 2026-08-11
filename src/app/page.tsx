@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import RecordModal from '@/components/RecordModal'
@@ -84,8 +84,8 @@ export default function App() {
   const [focusGroupKey, setFocusGroupKey] = useState<string | null>(null)
   const [locating, setLocating]   = useState(false)
 
-  // 요구사항 2: 입장 시 선택한 캐릭터/지역 (헤더 뱃지 표시용)
-  const [visitor, setVisitor]     = useState<{ characterId: string; region: string } | null>(null)
+  // 입장 시 촬영한 사진(dataURL, 메모리에만 보관 → 새로고침 시 자동 삭제) + 출신 지역 (헤더 뱃지 표시용)
+  const [visitor, setVisitor]     = useState<{ photo: string | null; region: string } | null>(null)
   // 새 두번째 페이지 모드: 별자리 지도(기본) ↔ 엽서 리더
   const [secondView, setSecondView] = useState<SecondView>('constellation')
   // 지도에서 특정 장소를 눌러 사연으로 들어올 때 시작 장소
@@ -149,11 +149,11 @@ export default function App() {
     setView('map')
   })
 
-  /* ── 입장 처리 — 선택값 저장(통계) + 헤더 뱃지용 state + 인트로(2단계)로 ── */
-  const enterWithSelection = (characterId: string, region: string) => {
-    setVisitor({ characterId, region })       // 요구사항 2: 헤더에 표시
-    saveVisitorSelection(characterId, region) // 요구사항 3: LocalStorage 통계 저장(+백엔드 훅)
-    transition(() => setView('intro'))         // D안: 곧장 지도가 아니라 환영 인트로부터
+  /* ── 입장 처리 — 사진(메모리 보관)·지역 저장 + 통계는 '지역'만 수집 + 인트로(2단계)로 ── */
+  const enterWithSelection = (photo: string | null, region: string) => {
+    setVisitor({ photo, region })              // 헤더/인트로에 표시 (사진은 저장·전송 안 함)
+    saveVisitorSelection(region)               // 통계: 출신 지역만 수집 (사진은 수집하지 않음)
+    transition(() => setView('intro'))         // 곧장 지도가 아니라 환영 인트로부터
   }
 
   /* ── 인트로 → 새 두번째 페이지: 별자리 지도부터 진입 ── */
@@ -388,10 +388,10 @@ export default function App() {
     return (
       <div style={pageStyle}>
         <EntryIntro
-          characterId={visitor.characterId}
+          photo={visitor.photo}
           region={visitor.region}
           onEnter={goSecond}   // 버튼 → 새 두번째 페이지(엽서 리더)로 진입
-          onBack={goBack}      // 다시 고르기 → 랜딩
+          onBack={goBack}      // 다시 찍기 → 랜딩
         />
       </div>
     )
@@ -421,7 +421,7 @@ export default function App() {
                 </button>
               )}
               <span style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '26px' : '19px', color: dark ? '#F4D58A' : '#800020', lineHeight: 1 }}>낭만여지도</span>
-              {isDesktop && visitor && <VisitorBadge characterId={visitor.characterId} region={visitor.region} />}
+              {isDesktop && visitor && <VisitorBadge photo={visitor.photo} region={visitor.region} />}
             </div>
             {/* 우 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '14px' : '8px', flexShrink: 0 }}>
@@ -503,8 +503,8 @@ export default function App() {
               <span style={{ fontFamily: FONT_BRAND, fontSize: '28px', color: '#800020', lineHeight: 1 }}>낭만여지도</span>
               <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#B5B0AB', letterSpacing: '0.04em' }}>· 대구</span>
             </div>
-            {/* 요구사항 2: 선택한 캐릭터 아이콘 + 지역 뱃지 */}
-            {visitor && <VisitorBadge characterId={visitor.characterId} region={visitor.region} />}
+            {/* 촬영한 사진 썸네일 + 지역 뱃지 */}
+            {visitor && <VisitorBadge photo={visitor.photo} region={visitor.region} />}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: '2px' }}>
@@ -583,7 +583,7 @@ export default function App() {
       {/* 요구사항 2(모바일): 선택 캐릭터+지역 뱃지 — 헤더 아래 중앙에 작게 떠 있음 */}
       {phase === 'idle' && visitor && (
         <div style={{ position: 'absolute', top: '52px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', borderRadius: '99px' }}>
-          <VisitorBadge characterId={visitor.characterId} region={visitor.region} compact />
+          <VisitorBadge photo={visitor.photo} region={visitor.region} compact />
         </div>
       )}
 
@@ -762,54 +762,34 @@ export default function App() {
 }
 
 /* ══════════════════════════════════════════════════════════
-   변경: 입장 사진 촬영(CameraBooth/DaeguStart) 기능 삭제
-   → 캐릭터 선택 + 출신 지역 선택 후 '입장하기' 게이트로 교체
+   입장 첫 화면: 캐릭터 선택 → '사진 촬영'으로 교체.
+   촬영한 사진은 메모리(React state)에만 담기고 저장·전송하지 않음(자동 삭제).
    ══════════════════════════════════════════════════════════ */
 
-/* ══════════════════════════════════════════════════════════
-   변경: 캐릭터 아이콘을 '낭만여지도' 일러스트(hero-map.png) 속
-   요소들로 교체. public/characters/*.png 에 저장돼 있음.
-   ▶ 다른 스프라이트/이미지로 바꾸려면 아래 src 경로만 수정하면 됩니다.
-     (예: '/characters/beer.png' → 원하는 파일 경로로 교체)
-   ══════════════════════════════════════════════════════════ */
-const CHARACTERS: { id: string; name: string; src: string }[] = [
-  { id: 'beer',     name: '맥주',   src: '/characters/beer.png' },
-  { id: 'sun',      name: '태양',   src: '/characters/sun.png' },
-  { id: 'car',      name: '자동차', src: '/characters/car.png' },
-  { id: 'wine',     name: '와인',   src: '/characters/wine.png' },
-  { id: 'mountain', name: '산',     src: '/characters/mountain.png' },
-  { id: 'clock',    name: '시계',   src: '/characters/clock.png' },
-  { id: 'pin',      name: '지도핀', src: '/characters/pin.png' },
-  { id: 'music',    name: '음악',   src: '/characters/music.png' },
-]
-
-/* 변경: 어느 지역에서 왔는지 — 전국 17개 시·도(광역 지자체)로 확대 */
+/* 어느 지역에서 왔는지 — 전국 17개 시·도(광역 지자체) */
 const ORIGINS = [
   '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기',
   '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
 ]
 
-/* 캐릭터 id → 캐릭터 정보 조회 (헤더 뱃지 등에서 사용) */
-const getCharacter = (id: string | null | undefined) => CHARACTERS.find(c => c.id === id)
-
-/* ── 입장 후 헤더 뱃지 — 선택한 캐릭터 아이콘 + 지역 이름 (요구사항 2) ── */
-function VisitorBadge({ characterId, region, compact = false }: { characterId: string; region: string; compact?: boolean }) {
-  const ch = getCharacter(characterId)
-  if (!ch) return null
+/* ── 입장 후 헤더 뱃지 — 촬영 사진 썸네일 + 지역 이름 ── */
+function VisitorBadge({ photo, region, compact = false }: { photo: string | null; region: string; compact?: boolean }) {
   const size = compact ? 20 : 24
   return (
     <div
-      title={`${ch.name} · ${region}`}
+      title={region}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '6px',
         padding: compact ? '4px 10px 4px 6px' : '5px 12px 5px 6px',
         borderRadius: '99px', background: '#FFF5F5', border: '1px solid #F0E0E0',
       }}
     >
-      <span style={{ width: size, height: size, borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={ch.src} alt={ch.name} style={{ width: '68%', height: '68%', objectFit: 'contain' }} />
-      </span>
+      {photo && (
+        <span style={{ width: size, height: size, borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </span>
+      )}
       <span style={{ fontFamily: FONT_UI, fontSize: compact ? '11px' : '12px', color: '#800020', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
         {region}에서 오심
       </span>
@@ -838,12 +818,11 @@ function useTypewriter(text: string, speed: number, startDelay = 0, enabled = tr
   return out
 }
 
-/* ── D안: 입장 직후 환영 인트로 (캐릭터·지역 활용, 담백/여백 중심) ── */
-function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: string; region: string; onEnter: () => void; onBack: () => void }) {
-  const ch = getCharacter(characterId)
+/* ── 입장 직후 환영 인트로 (촬영 사진·지역 활용, 담백/여백 중심) ── */
+function EntryIntro({ photo, region, onEnter, onBack }: { photo: string | null; region: string; onEnter: () => void; onBack: () => void }) {
   const [hovered, setHovered] = useState(false)
   // 환영 문구 → 리드 문장 순서로 타이핑
-  const headingText = `${region}에서 오신 걸\n환영해요`
+  const headingText = `${region}에서 오신 걸\n환영합니다`
   const leadText = '여기, 우리가 머물렀던 이야기들이 지도가 되어 있어요.\n천천히 둘러보세요.'
   const typedHeading = useTypewriter(headingText, 110, 350)
   const headingDone = typedHeading.length >= headingText.length
@@ -852,11 +831,13 @@ function EntryIntro({ characterId, region, onEnter, onBack }: { characterId: str
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: '#FAF8F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
 
-      {/* 선택한 캐릭터 — 크게(약 2배) */}
-      <div className="const-node" style={{ position: 'relative', width: '200px', height: '200px', borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(128,0,32,0.10)', marginBottom: '34px' }}>
-        {ch && (
+      {/* 촬영한 사진 — 원형으로 크게 */}
+      <div className="const-node" style={{ position: 'relative', width: '200px', height: '200px', borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(128,0,32,0.10)', marginBottom: '34px' }}>
+        {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={ch.src} alt={ch.name} style={{ width: '60%', height: '60%', objectFit: 'contain' }} />
+          <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <span style={{ fontSize: '54px', opacity: 0.5 }}>📷</span>
         )}
       </div>
 
@@ -906,37 +887,172 @@ function StepLabel({ n, text, desktop = false }: { n: number; text: string; desk
   )
 }
 
-/* ── 입장 게이트 — 캐릭터 + 지역을 모두 선택해야 입장 버튼 활성화 ── */
-function EntryGate({ onStart, desktop = false }: { onStart: (characterId: string, region: string) => void; desktop?: boolean }) {
-  const [character, setCharacter] = useState<string | null>(null)   // 선택한 캐릭터 id
-  const [origin, setOrigin]       = useState<string | null>(null)   // 선택한 출신 지역
-  const [hovered, setHovered]     = useState(false)
-  const ready = character !== null && origin !== null               // 둘 다 선택해야 입장 가능
+/* ── 사진 촬영 부스 — '촬영하기' 누르면 3초 카운트다운 후 셀카 캡처 ──
+   촬영한 사진은 dataURL로 상위에 전달되며 저장·전송하지 않음(메모리에만). ── */
+function CameraBooth({ photo, onCapture, onError, desktop = false }: {
+  photo: string | null
+  onCapture: (dataUrl: string | null) => void
+  onError?: () => void
+  desktop?: boolean
+}) {
+  const videoRef  = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [count, setCount] = useState<number | null>(null)  // 카운트다운(3,2,1) — null이면 대기
+  const [ready, setReady] = useState(false)                // 카메라 스트림 준비됨
+  const [error, setError] = useState<string | null>(null)
 
-  const enter = () => {
-    if (!character || !origin) return
-    // 선택값을 상위(App)로 전달 → 저장/헤더 표시 처리
-    onStart(character, origin)
+  // 사진이 없을 때만 카메라 스트림을 켠다. (촬영/재촬영 시 자동으로 다시 실행)
+  useEffect(() => {
+    if (photo) return
+    let cancelled = false
+    setReady(false); setError(null)
+    const md = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined
+    if (!md?.getUserMedia) {
+      setError('이 브라우저에서는 카메라를 쓸 수 없어요.'); onError?.()
+      return
+    }
+    md.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false })
+      .then(stream => {
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) videoRef.current.srcObject = stream
+        setReady(true)
+      })
+      .catch(() => { setError('카메라 권한이 필요해요. 브라우저에서 카메라를 허용해 주세요.'); onError?.() })
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+    }
+    // onError는 매 렌더 새로 생성될 수 있어 의존성에서 제외(카메라 재시작 방지)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo])
+
+  const capture = () => {
+    const v = videoRef.current
+    if (!v || !v.videoWidth) return
+    const w = v.videoWidth, h = v.videoHeight
+    const side = Math.min(w, h)               // 정사각형 크롭
+    const canvas = document.createElement('canvas')
+    canvas.width = side; canvas.height = side
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.translate(side, 0); ctx.scale(-1, 1)  // 좌우 반전(거울) — 미리보기와 동일하게
+    ctx.drawImage(v, (w - side) / 2, (h - side) / 2, side, side, 0, 0, side, side)
+    const url = canvas.toDataURL('image/jpeg', 0.85)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    onCapture(url)
+  }
+
+  // 촬영하기 → 3,2,1 카운트다운 후 캡처 (총 3초)
+  const shoot = () => {
+    if (count !== null || !ready) return
+    let n = 3
+    setCount(n)
+    const tick = () => {
+      n -= 1
+      if (n > 0) { setCount(n); window.setTimeout(tick, 1000) }
+      else { setCount(null); capture() }
+    }
+    window.setTimeout(tick, 1000)
+  }
+
+  const box = desktop ? 300 : 260
+  const frameStyle: React.CSSProperties = {
+    position: 'relative', width: '100%', maxWidth: `${box}px`, margin: '0 auto',
+    aspectRatio: '1 / 1', borderRadius: '18px', overflow: 'hidden',
+    background: '#141130', border: '1px solid #EDE9E4',
   }
 
   return (
-    <div style={{ width: desktop ? '640px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: desktop ? '40px' : '26px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+      <div style={frameStyle}>
+        {photo ? (
+          // 촬영 완료 — 결과 미리보기
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : error ? (
+          // 카메라 사용 불가
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '18px', textAlign: 'center' }}>
+            <span style={{ fontSize: '30px' }}>📷</span>
+            <p style={{ fontFamily: FONT_UI, fontSize: '12px', lineHeight: 1.6, color: '#E9E7F7', wordBreak: 'keep-all' }}>{error}</p>
+          </div>
+        ) : (
+          <>
+            <video
+              ref={videoRef}
+              autoPlay muted playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', background: '#141130' }}
+            />
+            {/* 카운트다운 숫자 오버레이 */}
+            {count !== null && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,11,30,0.35)' }}>
+                <span style={{ fontFamily: FONT_BRAND, fontSize: '92px', color: '#FAF8F5', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,0.4)' }}>{count}</span>
+              </div>
+            )}
+            {/* 준비 중 표시 */}
+            {!ready && count === null && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(233,231,247,0.7)' }}>카메라 준비 중…</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
-      {/* STEP 1 — 캐릭터 선택 */}
+      {/* 버튼 */}
+      {photo ? (
+        <button onClick={() => onCapture(null)}
+          style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#800020', background: '#FFF5F5', border: '1px solid #F0E0E0', borderRadius: '99px', padding: '9px 20px', cursor: 'pointer' }}>
+          다시 촬영
+        </button>
+      ) : !error ? (
+        <button onClick={shoot} disabled={!ready || count !== null}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontFamily: FONT_BRAND, fontSize: desktop ? '19px' : '17px', letterSpacing: '0.03em', color: '#FAF8F5', background: (ready && count === null) ? '#800020' : '#C9B3B9', border: 'none', borderRadius: '99px', padding: desktop ? '12px 30px' : '11px 26px', cursor: (ready && count === null) ? 'pointer' : 'default', boxShadow: (ready && count === null) ? '0 4px 14px rgba(128,0,32,0.22)' : 'none', transition: 'all 0.16s' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+          </svg>
+          {count !== null ? '촬영 중…' : '촬영하기'}
+        </button>
+      ) : null}
+
+      {/* 개인정보 안내 — 사진은 저장·전송하지 않음 */}
+      <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.02em', color: '#B5B0AB', textAlign: 'center', wordBreak: 'keep-all', lineHeight: 1.6 }}>
+        촬영한 사진은 저장·전송되지 않고 이 화면에서만 쓰인 뒤 자동 삭제됩니다.
+      </p>
+    </div>
+  )
+}
+
+/* ── 입장 게이트 — 사진 촬영 + 지역 선택 후 입장 버튼 활성화 ── */
+function EntryGate({ onStart, desktop = false }: { onStart: (photo: string | null, region: string) => void; desktop?: boolean }) {
+  const [photo, setPhoto]     = useState<string | null>(null)   // 촬영한 사진(dataURL)
+  const [camError, setCamError] = useState(false)               // 카메라 사용 불가(권한 거부 등)
+  const [origin, setOrigin]   = useState<string | null>(null)   // 선택한 출신 지역
+  const [hovered, setHovered] = useState(false)
+  // 지역은 필수, 사진은 찍었거나(또는 카메라를 못 쓰는 경우) 입장 가능 — 카메라 문제로 잠기지 않게
+  const ready = origin !== null && (photo !== null || camError)
+
+  const enter = () => {
+    if (!ready || !origin) return
+    onStart(photo, origin)
+  }
+
+  const guide = ready
+    ? '준비됐어요! 이제 입장할 수 있어요'
+    : origin === null
+      ? '사진을 촬영하고 지역을 선택해주세요'
+      : '사진을 촬영해주세요'
+
+  return (
+    <div style={{ width: desktop ? '640px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: desktop ? '36px' : '24px' }}>
+
+      {/* STEP 1 — 사진 촬영 */}
       <section>
-        <StepLabel n={1} text="나의 캐릭터를 골라주세요" desktop={desktop} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: desktop ? '16px' : '10px', marginTop: desktop ? '20px' : '14px' }}>
-          {CHARACTERS.map(c => {
-            const on = character === c.id
-            return (
-              // 요구사항 1: 아이콘 하단 한글 라벨 제거 → 아이콘만 표시 (이름은 title 툴팁으로만 유지)
-              <button key={c.id} onClick={() => setCharacter(c.id)} title={c.name} aria-label={c.name}
-                style={{ aspectRatio: '1 / 1', borderRadius: desktop ? '18px' : '14px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#FFF5F5' : '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: on ? '0 4px 14px rgba(128,0,32,0.16)' : 'none', transform: on ? 'translateY(-2px)' : 'translateY(0)', transition: 'all 0.16s' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.src} alt={c.name} style={{ width: '62%', height: '62%', objectFit: 'contain' }} />
-              </button>
-            )
-          })}
+        <StepLabel n={1} text="사진을 촬영해 주세요" desktop={desktop} />
+        <div style={{ marginTop: desktop ? '18px' : '14px' }}>
+          <CameraBooth photo={photo} onCapture={setPhoto} onError={() => setCamError(true)} desktop={desktop} />
         </div>
       </section>
 
@@ -956,10 +1072,10 @@ function EntryGate({ onStart, desktop = false }: { onStart: (characterId: string
         </div>
       </section>
 
-      {/* 안내 문구 + 입장 버튼 (둘 다 선택해야 활성화) */}
+      {/* 안내 문구 + 입장 버튼 */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', marginTop: '4px' }}>
         <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.04em', color: ready ? '#2A6040' : '#C0BEBB', transition: 'color 0.2s', wordBreak: 'keep-all', textAlign: 'center' }}>
-          {ready ? '준비됐어요! 이제 입장할 수 있어요' : '캐릭터와 지역을 모두 선택해주세요'}
+          {guide}
         </p>
 
         <button
