@@ -456,13 +456,13 @@ export default function App() {
               {/* 사진(별 알맹이) — 금빛 링 */}
               <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={visitor.photo} alt="" style={{ width: isDesktop ? '52px' : '44px', height: isDesktop ? '36px' : '30px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
+                <img src={visitor.photo} alt="" style={{ width: isDesktop ? '60px' : '50px', height: isDesktop ? '42px' : '34px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
               </span>
-              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, alignItems: 'flex-start' }}>
-                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '13px' : '11px', fontWeight: 600, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
-                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '10px' : '9px', color: dark ? 'rgba(233,231,247,0.6)' : '#B08968', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>숨은 낭만 열기</span>
+              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, alignItems: 'flex-start', gap: '1px' }}>
+                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '17px' : '14px', fontWeight: 700, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
+                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '12px' : '11px', fontWeight: 500, color: dark ? 'rgba(233,231,247,0.72)' : '#B08968', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>숨은 낭만 열기</span>
               </span>
-              <span className="photo-sparkle" style={{ fontSize: isDesktop ? '15px' : '13px', lineHeight: 1, flexShrink: 0 }}>✨</span>
+              <span className="photo-sparkle" style={{ fontSize: isDesktop ? '19px' : '16px', lineHeight: 1, flexShrink: 0 }}>✨</span>
             </button>
           )}
 
