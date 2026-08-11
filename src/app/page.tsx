@@ -1017,10 +1017,13 @@ function CameraBooth({ photo, onCapture, onError, desktop = false }: {
         </button>
       ) : null}
 
-      {/* 개인정보 안내 — 사진은 저장·전송하지 않음 */}
-      <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.02em', color: '#B5B0AB', textAlign: 'center', wordBreak: 'keep-all', lineHeight: 1.6 }}>
-        촬영한 사진은 저장·전송되지 않고 이 화면에서만 쓰인 뒤 자동 삭제됩니다.
-      </p>
+      {/* 개인정보 안내 — 사진은 저장·전송하지 않음 (강조: 진하고 잘 보이게) */}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '13px', fontWeight: 700, letterSpacing: '0.01em', color: '#800020', background: '#FFF0F0', border: '1px solid #EBC9C9', borderRadius: '99px', padding: '9px 16px', wordBreak: 'keep-all', lineHeight: 1.5, textAlign: 'center' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+        촬영한 사진은 저장·전송되지 않고 자동 삭제됩니다
+      </span>
     </div>
   )
 }
@@ -1045,53 +1048,75 @@ function EntryGate({ onStart, desktop = false }: { onStart: (photo: string | nul
       ? '사진을 촬영하고 지역을 선택해주세요'
       : '사진을 촬영해주세요'
 
-  return (
-    <div style={{ width: desktop ? '640px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: desktop ? '36px' : '24px' }}>
-
-      {/* STEP 1 — 사진 촬영 */}
-      <section>
-        <StepLabel n={1} text="사진을 촬영해 주세요" desktop={desktop} />
-        <div style={{ marginTop: desktop ? '18px' : '14px' }}>
-          <CameraBooth photo={photo} onCapture={setPhoto} onError={() => setCamError(true)} desktop={desktop} />
-        </div>
-      </section>
-
-      {/* STEP 2 — 출신 지역 선택 */}
-      <section>
-        <StepLabel n={2} text="어느 지역에서 오셨나요?" desktop={desktop} />
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: desktop ? '10px' : '8px', marginTop: desktop ? '20px' : '14px' }}>
-          {ORIGINS.map(o => {
-            const on = origin === o
-            return (
-              <button key={o} onClick={() => setOrigin(o)}
-                style={{ fontFamily: FONT_UI, fontSize: desktop ? '16px' : '13px', padding: desktop ? '12px 22px' : '9px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#800020' : '#FFFFFF', color: on ? '#FAF8F5' : '#8A8480', fontWeight: on ? 500 : 400, cursor: 'pointer', transition: 'all 0.16s' }}>
-                {o}
-              </button>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* 안내 문구 + 입장 버튼 */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', marginTop: '4px' }}>
-        <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.04em', color: ready ? '#2A6040' : '#C0BEBB', transition: 'color 0.2s', wordBreak: 'keep-all', textAlign: 'center' }}>
-          {guide}
-        </p>
-
-        <button
-          onClick={enter}
-          disabled={!ready}
-          onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '20px', letterSpacing: '0.04em', color: ready ? '#FAF8F5' : '#C0BEBB', background: ready ? '#800020' : '#EDE9E4', padding: desktop ? '16px 48px' : '15px 40px', cursor: ready ? 'pointer' : 'not-allowed', transform: ready && hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: ready ? (hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)') : 'none', transition: 'all 0.2s ease' }}
-        >
-          낭만여지도 입장하기
-          {ready && (
-            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
-            </svg>
-          )}
-        </button>
+  /* STEP 1 — 사진 촬영 */
+  const cameraSection = (
+    <section>
+      <StepLabel n={1} text="사진을 촬영해 주세요" desktop={desktop} />
+      <div style={{ marginTop: desktop ? '18px' : '14px' }}>
+        <CameraBooth photo={photo} onCapture={setPhoto} onError={() => setCamError(true)} desktop={desktop} />
       </div>
+    </section>
+  )
+
+  /* STEP 2 — 출신 지역 선택 */
+  const regionSection = (
+    <section>
+      <StepLabel n={2} text="어느 지역에서 오셨나요?" desktop={desktop} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: desktop ? '10px' : '8px', marginTop: desktop ? '20px' : '14px' }}>
+        {ORIGINS.map(o => {
+          const on = origin === o
+          return (
+            <button key={o} onClick={() => setOrigin(o)}
+              style={{ fontFamily: FONT_UI, fontSize: desktop ? '16px' : '13px', padding: desktop ? '12px 22px' : '9px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#800020' : '#FFFFFF', color: on ? '#FAF8F5' : '#8A8480', fontWeight: on ? 500 : 400, cursor: 'pointer', transition: 'all 0.16s' }}>
+              {o}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+
+  /* 안내 문구 + 입장 버튼 */
+  const enterBlock = (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', marginTop: '4px' }}>
+      <p style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.04em', color: ready ? '#2A6040' : '#C0BEBB', transition: 'color 0.2s', wordBreak: 'keep-all', textAlign: 'center' }}>
+        {guide}
+      </p>
+
+      <button
+        onClick={enter}
+        disabled={!ready}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '20px', letterSpacing: '0.04em', color: ready ? '#FAF8F5' : '#C0BEBB', background: ready ? '#800020' : '#EDE9E4', padding: desktop ? '16px 48px' : '15px 40px', cursor: ready ? 'pointer' : 'not-allowed', transform: ready && hovered ? 'translateY(-2px)' : 'translateY(0)', boxShadow: ready ? (hovered ? '0 10px 30px rgba(128,0,32,0.32)' : '0 4px 18px rgba(128,0,32,0.22)') : 'none', transition: 'all 0.2s ease' }}
+      >
+        낭만여지도 입장하기
+        {ready && (
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="10" x2="15" y2="10" /><polyline points="10,5 15,10 10,15" />
+          </svg>
+        )}
+      </button>
+    </div>
+  )
+
+  // 데스크탑: 좌(카메라) | 우(지역) 2분할 후 아래에 입장 버튼. 모바일: 세로 스택.
+  if (desktop) {
+    return (
+      <div style={{ width: '100%', maxWidth: '820px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '28px 36px', alignItems: 'flex-start' }}>
+          <div style={{ flex: '0 1 270px', minWidth: '240px' }}>{cameraSection}</div>
+          <div style={{ flex: '1 1 300px', minWidth: '240px' }}>{regionSection}</div>
+        </div>
+        {enterBlock}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ width: '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {cameraSection}
+      {regionSection}
+      {enterBlock}
     </div>
   )
 }
