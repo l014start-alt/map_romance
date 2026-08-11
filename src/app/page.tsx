@@ -476,7 +476,7 @@ export default function App() {
                 돌아가기
               </button>
               <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontFamily: FONT_UI, fontSize: '14px', color: dark ? 'rgba(233,231,247,0.82)' : '#6B6560', background: 'transparent', border: `1px solid ${dark ? 'rgba(255,255,255,0.18)' : '#E4DFD9'}`, borderRadius: '10px', padding: '11px 20px', cursor: 'pointer', transition: 'all 0.16s' }}>
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10a6 6 0 1 1 1.8 4.3" /><polyline points="4,15 4,10 9,10" /></svg>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><g transform="translate(2 2) scale(0.667)" strokeWidth="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></g></svg>
                 처음으로
               </button>
             </div>
@@ -863,9 +863,9 @@ function EntryIntro({ photo, region, onEnter, onBack }: { photo: string | null; 
   // 환영 문구 → 리드 문장 순서로 타이핑
   const headingText = `${region}에서 오신 걸\n환영합니다`
   const leadText = '여기, 우리가 머물렀던 이야기들이 지도가 되어 있어요.\n천천히 둘러보세요.'
-  const typedHeading = useTypewriter(headingText, 110, 350)
+  const typedHeading = useTypewriter(headingText, 55, 350)
   const headingDone = typedHeading.length >= headingText.length
-  const typedLead = useTypewriter(leadText, 62, 250, headingDone)
+  const typedLead = useTypewriter(leadText, 31, 250, headingDone)
   const leadDone = typedLead.length >= leadText.length
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: '#FAF8F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>

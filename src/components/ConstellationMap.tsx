@@ -422,7 +422,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
         <div style={{ position: 'absolute', left: '16px', bottom: '16px', zIndex: 8, display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <ZoomBtn label="확대" onClick={() => zoomBtn(1.6)}><line x1="10" y1="4" x2="10" y2="16" /><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
           <ZoomBtn label="축소" onClick={() => zoomBtn(1 / 1.6)}><line x1="4" y1="10" x2="16" y2="10" /></ZoomBtn>
-          <ZoomBtn label="처음 위치" onClick={reset}><path d="M4 10a6 6 0 1 1 1.8 4.3" /><polyline points="4,15 4,10 9,10" /></ZoomBtn>
+          <ZoomBtn label="처음 위치" onClick={reset}><g transform="translate(2 2) scale(0.667)" strokeWidth="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></g></ZoomBtn>
         </div>
       </div>
 
