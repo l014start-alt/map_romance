@@ -34,6 +34,7 @@ const DAEGU: Region = { id: 'daegu', name: '대구', emoji: '🍎', lat: 35.8714
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_UI    = 'var(--font-sans)'
+const FONT_SERIF = 'var(--font-serif)'  // Noto Serif KR — 글귀 본문 가독성용
 const DESKTOP_BP = 1024
 
 /* ── 데스크탑(≥1024px) 여부 감지 ── */
@@ -821,30 +822,35 @@ function VisitorBadge({ photo, region, compact = false }: { photo: string | null
   )
 }
 
-/* ── 사진 크게 보기 모달 — 촬영 원본을 크게 + 낭젊사 매거진 랜덤 글귀 ── */
+/* ── 사진 크게 보기 모달 — 엽서 느낌: 사진 + 낭젊사 매거진 랜덤 글귀(명조체) ── */
 function PhotoZoomModal({ photo, region, onClose }: { photo: string; region: string; onClose: () => void }) {
   // 모달이 열릴 때마다 새 글귀 하나 (열기마다 랜덤)
   const [quote] = useState(randomQuote)
   return (
     <div onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(8,6,20,0.88)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '18px', overflowY: 'auto' }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(8,6,20,0.9)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px', overflowY: 'auto' }}>
       {/* 닫기 */}
       <button onClick={onClose} aria-label="닫기"
-        style={{ position: 'fixed', top: '18px', right: '18px', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#F4F2EC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+        style={{ position: 'fixed', top: '18px', right: '18px', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.14)', border: 'none', color: '#F4F2EC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="5" x2="15" y2="15" /><line x1="15" y1="5" x2="5" y2="15" /></svg>
       </button>
 
-      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', maxWidth: 'min(92vw, 560px)', width: '100%' }}>
+      {/* 엽서 카드 (따뜻한 종이) */}
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ margin: 'auto', width: '100%', maxWidth: 'min(92vw, 460px)', background: 'linear-gradient(180deg, #FCF8F0 0%, #F6EEDF 100%)', borderRadius: '20px', border: '1px solid #EADFC9', boxShadow: '0 30px 70px rgba(0,0,0,0.55)', padding: '16px 16px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* 사진 — 엽서 속 프레임 */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo} alt="" style={{ width: '100%', height: 'auto', maxHeight: '58vh', objectFit: 'contain', borderRadius: '18px', boxShadow: '0 24px 60px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)' }} />
+        <img src={photo} alt="" style={{ width: '100%', height: 'auto', maxHeight: '46vh', objectFit: 'cover', borderRadius: '12px', border: '3px solid #FFFFFF', boxShadow: '0 6px 18px rgba(74,58,42,0.18)', display: 'block' }} />
 
-        {/* 낭젊사 매거진 랜덤 글귀 */}
-        <figure style={{ margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
-          <span style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.18em', color: '#F4D58A', opacity: 0.85 }}>· {quote.c} ·</span>
-          <blockquote style={{ margin: 0, fontFamily: FONT_BRAND, fontSize: '21px', lineHeight: 1.7, color: '#F4F2EC', wordBreak: 'keep-all', maxWidth: '460px' }}>
-            “{quote.t}”
+        {/* 글귀 (명조체로 가독성 ↑) */}
+        <figure style={{ margin: '20px 6px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
+          <span style={{ fontFamily: FONT_UI, fontSize: '11px', fontWeight: 600, letterSpacing: '0.22em', color: '#B0402B' }}>· {quote.c} ·</span>
+          <blockquote style={{ margin: 0, fontFamily: FONT_SERIF, fontSize: '17px', lineHeight: 2.0, color: '#3E342E', wordBreak: 'keep-all' }}>
+            {quote.t}
           </blockquote>
-          <figcaption style={{ fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(233,231,247,0.6)', letterSpacing: '0.02em' }}>
+          {/* 구분선 */}
+          <span style={{ width: '34px', height: '1px', background: '#D8C9AC', margin: '4px 0' }} />
+          <figcaption style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#9A8C76', letterSpacing: '0.02em' }}>
             낭만젊음사랑 매거진 · {region}에서 온 당신에게
           </figcaption>
         </figure>
