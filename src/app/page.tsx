@@ -14,6 +14,7 @@ import ConstellationMap from '@/components/ConstellationMap' // 별자리 지도
 import { Spot, Category, LocationGroup } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
 import { saveVisitorSelection, setCollectionExcluded } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
+import { randomQuote } from '@/lib/quotes' // 낭젊사 매거진 글귀(사진 크게보기 랜덤 표시)
 
 const LeafletMap = dynamic(() => import('@/components/NaverMap'), { ssr: false })
 
@@ -816,21 +817,33 @@ function VisitorBadge({ photo, region, compact = false }: { photo: string | null
   )
 }
 
-/* ── 사진 크게 보기 모달 — 촬영 원본을 그대로 크게 (필터 없음) ── */
+/* ── 사진 크게 보기 모달 — 촬영 원본을 크게 + 낭젊사 매거진 랜덤 글귀 ── */
 function PhotoZoomModal({ photo, region, onClose }: { photo: string; region: string; onClose: () => void }) {
+  // 모달이 열릴 때마다 새 글귀 하나 (열기마다 랜덤)
+  const [quote] = useState(randomQuote)
   return (
     <div onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(8,6,20,0.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '16px' }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(8,6,20,0.88)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '18px', overflowY: 'auto' }}>
       {/* 닫기 */}
       <button onClick={onClose} aria-label="닫기"
         style={{ position: 'fixed', top: '18px', right: '18px', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#F4F2EC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="5" x2="15" y2="15" /><line x1="15" y1="5" x2="5" y2="15" /></svg>
       </button>
 
-      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', maxWidth: 'min(92vw, 640px)', width: '100%' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', maxWidth: 'min(92vw, 560px)', width: '100%' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo} alt="" style={{ width: '100%', height: 'auto', maxHeight: '78vh', objectFit: 'contain', borderRadius: '18px', boxShadow: '0 24px 60px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)' }} />
-        <p style={{ fontFamily: FONT_UI, fontSize: '14px', fontWeight: 600, color: '#F4D58A', letterSpacing: '0.02em' }}>{region}에서 오심</p>
+        <img src={photo} alt="" style={{ width: '100%', height: 'auto', maxHeight: '58vh', objectFit: 'contain', borderRadius: '18px', boxShadow: '0 24px 60px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)' }} />
+
+        {/* 낭젊사 매거진 랜덤 글귀 */}
+        <figure style={{ margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
+          <span style={{ fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.18em', color: '#F4D58A', opacity: 0.85 }}>· {quote.c} ·</span>
+          <blockquote style={{ margin: 0, fontFamily: FONT_BRAND, fontSize: '21px', lineHeight: 1.7, color: '#F4F2EC', wordBreak: 'keep-all', maxWidth: '460px' }}>
+            “{quote.t}”
+          </blockquote>
+          <figcaption style={{ fontFamily: FONT_UI, fontSize: '12px', color: 'rgba(233,231,247,0.6)', letterSpacing: '0.02em' }}>
+            낭만젊음사랑 매거진 · {region}에서 온 당신에게
+          </figcaption>
+        </figure>
       </div>
     </div>
   )
