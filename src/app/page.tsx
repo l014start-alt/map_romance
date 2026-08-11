@@ -86,6 +86,8 @@ export default function App() {
 
   // 입장 시 촬영한 사진(dataURL, 메모리에만 보관 → 새로고침 시 자동 삭제) + 출신 지역 (헤더 뱃지 표시용)
   const [visitor, setVisitor]     = useState<{ photo: string | null; region: string } | null>(null)
+  // 지도 좌상단 사진 아바타 클릭 → 그림화(캐릭터) 모달
+  const [photoFunOpen, setPhotoFunOpen] = useState(false)
   // 새 두번째 페이지 모드: 별자리 지도(기본) ↔ 엽서 리더
   const [secondView, setSecondView] = useState<SecondView>('constellation')
   // 지도에서 특정 장소를 눌러 사연으로 들어올 때 시작 장소
@@ -446,13 +448,20 @@ export default function App() {
             ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
 
-          {/* 입장 시 촬영한 사진 — 지도/사연 위에 떠 있는 아바타 */}
+          {/* 입장 시 촬영한 사진 — 지도/사연 위에 떠 있는 아바타 (클릭 → 그림화 모달) */}
           {visitor?.photo && (
-            <div style={{ position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 14px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.72)' : 'rgba(255,255,255,0.92)', border: `1px solid ${dark ? 'rgba(244,213,138,0.45)' : '#EDE9E4'}`, boxShadow: '0 4px 16px rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)' }}>
+            <button onClick={() => setPhotoFunOpen(true)} title="클릭해서 그림으로 변신!"
+              style={{ position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 14px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.72)' : 'rgba(255,255,255,0.92)', border: `1px solid ${dark ? 'rgba(244,213,138,0.45)' : '#EDE9E4'}`, boxShadow: '0 4px 16px rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)', cursor: 'pointer' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={visitor.photo} alt="" style={{ width: isDesktop ? '52px' : '44px', height: isDesktop ? '36px' : '30px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
               <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '13px' : '11px', fontWeight: 600, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
-            </div>
+              <span style={{ fontSize: isDesktop ? '15px' : '13px', lineHeight: 1 }}>✨</span>
+            </button>
+          )}
+
+          {/* 그림화(캐릭터) 모달 */}
+          {photoFunOpen && visitor?.photo && (
+            <PhotoFunModal photo={visitor.photo} region={visitor.region} desktop={isDesktop} onClose={() => setPhotoFunOpen(false)} />
           )}
         </div>
 
@@ -801,6 +810,119 @@ function VisitorBadge({ photo, region, compact = false }: { photo: string | null
       <span style={{ fontFamily: FONT_UI, fontSize: compact ? '11px' : '12px', color: '#800020', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
         {region}에서 오심
       </span>
+    </div>
+  )
+}
+
+/* ── 그림화(캐릭터) 모달 — 촬영 사진을 캔버스 필터로 그림풍 변환 (전부 브라우저 안에서, 전송 없음) ── */
+type FunStyle = { id: string; name: string; emoji: string }
+const FUN_STYLES: FunStyle[] = [
+  { id: 'sketch', name: '연필 스케치', emoji: '✏️' },
+  { id: 'toon',   name: '만화',       emoji: '🎨' },
+  { id: 'pop',    name: '팝아트',     emoji: '⚡' },
+]
+
+/** 선택 스타일을 캔버스에 그린다 (ctx.filter + 합성 — 픽셀을 서버로 보내지 않음) */
+function paintFunStyle(canvas: HTMLCanvasElement, img: HTMLImageElement, styleId: string) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const w = canvas.width, h = canvas.height
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.filter = 'none'
+  ctx.clearRect(0, 0, w, h)
+
+  if (styleId === 'sketch') {
+    // 연필 스케치: 흑백 위에 (반전+블러)를 color-dodge 합성 → 선화 느낌
+    ctx.filter = 'grayscale(1) brightness(1.05)'
+    ctx.drawImage(img, 0, 0, w, h)
+    ctx.globalCompositeOperation = 'color-dodge'
+    ctx.filter = 'grayscale(1) invert(1) blur(7px)'
+    ctx.drawImage(img, 0, 0, w, h)
+    // 살짝 대비 강화 위해 한 번 더 곱하기
+    ctx.globalCompositeOperation = 'multiply'
+    ctx.filter = 'grayscale(1) contrast(1.15) brightness(1.08)'
+    ctx.drawImage(img, 0, 0, w, h)
+  } else if (styleId === 'toon') {
+    // 만화: 부드럽게 뭉갠 뒤 채도·대비를 올려 셀 애니 느낌
+    ctx.filter = 'blur(0.8px) saturate(1.9) contrast(1.4) brightness(1.06)'
+    ctx.drawImage(img, 0, 0, w, h)
+  } else { // pop
+    ctx.filter = 'saturate(2.4) contrast(1.6) hue-rotate(-12deg) brightness(1.05)'
+    ctx.drawImage(img, 0, 0, w, h)
+  }
+
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.filter = 'none'
+}
+
+function PhotoFunModal({ photo, region, desktop, onClose }: { photo: string; region: string; desktop: boolean; onClose: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const imgRef = useRef<HTMLImageElement | null>(null)
+  const [styleId, setStyleId] = useState('sketch')
+  const [loaded, setLoaded] = useState(false)
+
+  // 사진 로드
+  useEffect(() => {
+    const img = new window.Image()
+    img.onload = () => {
+      imgRef.current = img
+      const cv = canvasRef.current
+      if (cv) {
+        // 캔버스 해상도 = 사진 비율 유지(최대 720px 기준)
+        const maxW = 720
+        const scale = Math.min(1, maxW / img.naturalWidth)
+        cv.width = Math.round(img.naturalWidth * scale)
+        cv.height = Math.round(img.naturalHeight * scale)
+      }
+      setLoaded(true)
+    }
+    img.src = photo
+  }, [photo])
+
+  // 스타일 적용
+  useEffect(() => {
+    if (!loaded) return
+    const cv = canvasRef.current, img = imgRef.current
+    if (cv && img) paintFunStyle(cv, img, styleId)
+  }, [styleId, loaded])
+
+  return (
+    <div onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(8,6,20,0.82)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ position: 'relative', width: '100%', maxWidth: desktop ? '440px' : '360px', background: '#141130', border: '1px solid rgba(244,213,138,0.35)', borderRadius: '22px', padding: desktop ? '22px' : '18px', boxShadow: '0 24px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+
+        {/* 닫기 */}
+        <button onClick={onClose} aria-label="닫기"
+          style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#E9E7F7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="5" x2="15" y2="15" /><line x1="15" y1="5" x2="5" y2="15" /></svg>
+        </button>
+
+        <p style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '24px' : '21px', color: '#F4D58A', letterSpacing: '0.02em', marginTop: '4px' }}>✨ 낭만 캐릭터 ✨</p>
+
+        {/* 그림화된 캔버스 */}
+        <div style={{ position: 'relative', width: '100%', borderRadius: '16px', overflow: 'hidden', background: '#FFFFFF', border: '1px solid rgba(255,255,255,0.12)' }}>
+          <canvas ref={canvasRef} style={{ width: '100%', height: 'auto', display: 'block' }} />
+          {!loaded && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A8480', fontFamily: FONT_UI, fontSize: '12px' }}>변환 중…</div>}
+        </div>
+
+        {/* 스타일 선택 */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {FUN_STYLES.map(s => {
+            const on = s.id === styleId
+            return (
+              <button key={s.id} onClick={() => setStyleId(s.id)}
+                style={{ fontFamily: FONT_UI, fontSize: '13px', padding: '8px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#F4D58A' : 'rgba(255,255,255,0.18)'}`, background: on ? 'rgba(244,213,138,0.16)' : 'transparent', color: on ? '#F4D58A' : 'rgba(233,231,247,0.75)', fontWeight: on ? 600 : 400, cursor: 'pointer', transition: 'all 0.14s' }}>
+                {s.emoji} {s.name}
+              </button>
+            )
+          })}
+        </div>
+
+        <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: 'rgba(233,231,247,0.7)', textAlign: 'center', wordBreak: 'keep-all' }}>
+          {region}에서 온 낭만 여행자
+        </p>
+      </div>
     </div>
   )
 }
