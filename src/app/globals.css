@@ -101,6 +101,21 @@ body {
 @keyframes star-twinkle { 0%, 100% { opacity: 0.22; } 50% { opacity: 0.95; } }
 .star-tw { animation: star-twinkle 3.4s ease-in-out infinite; }
 
+/* ── 지도 위 '사진 별' 아바타: 반짝이며 눌러보고 싶게 (숨은 행복 열기) ── */
+@keyframes photo-star-glow {
+  0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.28), 0 0 9px 1px var(--star-glow); }
+  50%      { box-shadow: 0 4px 16px rgba(0,0,0,0.28), 0 0 24px 7px var(--star-glow); }
+}
+@keyframes photo-star-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.photo-star {
+  animation: photo-star-glow 2.6s ease-in-out infinite, photo-star-float 4.2s ease-in-out infinite;
+  transition: filter 0.2s ease;
+}
+.photo-star:hover { filter: brightness(1.08); }
+/* 반짝임(별): 크기·투명도 트윈클 */
+@keyframes photo-sparkle { 0%, 100% { opacity: 0.55; transform: scale(0.8) rotate(0deg); } 50% { opacity: 1; transform: scale(1.2) rotate(20deg); } }
+.photo-sparkle { display: inline-block; animation: photo-sparkle 1.9s ease-in-out infinite; }
+
 /* ── 타자기 효과: 본문 뒤 깜빡이는 커서 ── */
 @keyframes tw-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .tw-cursor {

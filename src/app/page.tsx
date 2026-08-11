@@ -449,16 +449,20 @@ export default function App() {
             ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
 
-          {/* 입장 시 촬영한 사진 — 지도/사연 위에 떠 있는 아바타 (클릭 → 크게 보기) */}
+          {/* 입장 시 촬영한 사진 — 지도 위에 반짝이는 '별'처럼 (클릭 → 오늘의 낭만 열기) */}
           {visitor?.photo && (
-            <button onClick={() => setPhotoZoomOpen(true)} title="사진 크게 보기"
-              style={{ position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 14px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.72)' : 'rgba(255,255,255,0.92)', border: `1px solid ${dark ? 'rgba(244,213,138,0.45)' : '#EDE9E4'}`, boxShadow: '0 4px 16px rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)', cursor: 'pointer' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={visitor.photo} alt="" style={{ width: isDesktop ? '52px' : '44px', height: isDesktop ? '36px' : '30px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
-              <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '13px' : '11px', fontWeight: 600, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
-              <svg width={isDesktop ? '15' : '13'} height={isDesktop ? '15' : '13'} viewBox="0 0 20 20" fill="none" stroke={dark ? '#F4D58A' : '#800020'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.85 }}>
-                <path d="M4 8V4h4M16 12v4h-4M4 4l5 5M16 16l-5-5" />
-              </svg>
+            <button onClick={() => setPhotoZoomOpen(true)} title="눌러서 오늘의 낭만 한 조각 열기" className="photo-star"
+              style={{ ['--star-glow' as string]: dark ? 'rgba(244,213,138,0.55)' : 'rgba(128,0,32,0.30)', position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 15px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.78)' : 'rgba(255,255,255,0.94)', border: `1px solid ${dark ? 'rgba(244,213,138,0.6)' : '#EAD7B0'}`, backdropFilter: 'blur(6px)', cursor: 'pointer' } as React.CSSProperties}>
+              {/* 사진(별 알맹이) — 금빛 링 */}
+              <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={visitor.photo} alt="" style={{ width: isDesktop ? '52px' : '44px', height: isDesktop ? '36px' : '30px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, alignItems: 'flex-start' }}>
+                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '13px' : '11px', fontWeight: 600, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
+                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '10px' : '9px', color: dark ? 'rgba(233,231,247,0.6)' : '#B08968', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>숨은 낭만 열기</span>
+              </span>
+              <span className="photo-sparkle" style={{ fontSize: isDesktop ? '15px' : '13px', lineHeight: 1, flexShrink: 0 }}>✨</span>
             </button>
           )}
 
