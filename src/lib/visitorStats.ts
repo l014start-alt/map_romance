@@ -13,6 +13,27 @@ export interface VisitorSelection {
 
 const CURRENT_KEY = 'map_romance_visitor'      // 가장 최근 선택 1건
 const LOG_KEY     = 'map_romance_visitor_log'  // 통계용 누적 로그(배열)
+const NOLOG_KEY   = 'map_romance_nolog'        // '1'이면 이 기기의 선택은 통계 수집에서 제외
+
+/**
+ * 이 기기의 통계 수집 제외 여부를 켜고/끈다.
+ * (사장님 본인 기기·테스트용. 주소에 ?nolog=1 로 접속하면 켜짐 / ?nolog=0 으로 끔)
+ */
+export function setCollectionExcluded(excluded: boolean): void {
+  try {
+    if (excluded) localStorage.setItem(NOLOG_KEY, '1')
+    else localStorage.removeItem(NOLOG_KEY)
+  } catch { /* ignore */ }
+}
+
+/** 이 기기가 통계 수집에서 제외되어 있는지 */
+export function isCollectionExcluded(): boolean {
+  try {
+    return localStorage.getItem(NOLOG_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 /**
  * 방문자 선택을 저장한다.
@@ -22,21 +43,27 @@ const LOG_KEY     = 'map_romance_visitor_log'  // 통계용 누적 로그(배열
 export function saveVisitorSelection(characterId: string, region: string): VisitorSelection {
   const entry: VisitorSelection = { characterId, region, at: new Date().toISOString() }
 
+  // 이 기기가 통계 수집 제외(사장님 본인 기기)라면 → 화면 표시용 CURRENT_KEY만 남기고
+  // 통계 로그·서버 전송은 건너뛴다.
+  const excluded = isCollectionExcluded()
+
   try {
-    // 1) 최근 선택 1건 저장
+    // 1) 최근 선택 1건 저장 (헤더 뱃지 등 화면 표시용 — 제외 기기에서도 UI는 정상 동작)
     localStorage.setItem(CURRENT_KEY, JSON.stringify(entry))
 
-    // 2) 통계용 누적 로그에 append
-    const raw = localStorage.getItem(LOG_KEY)
-    const log: VisitorSelection[] = raw ? JSON.parse(raw) : []
-    log.push(entry)
-    localStorage.setItem(LOG_KEY, JSON.stringify(log))
+    // 2) 통계용 누적 로그에 append (제외 기기는 생략)
+    if (!excluded) {
+      const raw = localStorage.getItem(LOG_KEY)
+      const log: VisitorSelection[] = raw ? JSON.parse(raw) : []
+      log.push(entry)
+      localStorage.setItem(LOG_KEY, JSON.stringify(log))
+    }
   } catch {
     /* 프라이빗 모드 등 localStorage 사용 불가 시 무시 */
   }
 
-  // 3) 백엔드(Supabase)로도 전송 — 통계 집계용. 실패해도 조용히 무시(로컬엔 이미 저장됨).
-  recordSelectionToBackend(entry)
+  // 3) 백엔드(Supabase)로도 전송 — 통계 집계용. 제외 기기는 전송하지 않음.
+  if (!excluded) recordSelectionToBackend(entry)
 
   return entry
 }

@@ -13,7 +13,7 @@ import StoryFeed from '@/components/StoryFeed'             // 사연 피드(시�
 import ConstellationMap from '@/components/ConstellationMap' // 별자리 지도(지도로 보기)
 import { Spot, Category, LocationGroup } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
-import { saveVisitorSelection } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
+import { saveVisitorSelection, setCollectionExcluded } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
 
 const LeafletMap = dynamic(() => import('@/components/NaverMap'), { ssr: false })
 
@@ -96,6 +96,16 @@ export default function App() {
   const filteredSpots  = filter === 'all' ? spots : spots.filter(s => s.category === filter)
   const filteredGroups = groupSpots(filteredSpots)
   const activeGroup    = activeGroupKey ? filteredGroups.find(g => g.key === activeGroupKey) ?? null : null
+
+  /* ── 통계 수집 제외 스위치: 주소에 ?nolog=1(제외) / ?nolog=0(해제)로 접속하면
+        이 기기에 표시가 저장돼, 사장님 본인 기기·테스트 선택은 통계에서 빠진다. ── */
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('nolog')
+      if (p === '1') setCollectionExcluded(true)
+      else if (p === '0') setCollectionExcluded(false)
+    } catch { /* ignore */ }
+  }, [])
 
   /* ── 초기 로딩: mockData + localStorage + Supabase 병합 ── */
   useEffect(() => {
