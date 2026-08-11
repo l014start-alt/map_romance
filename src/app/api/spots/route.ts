@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Category } from '@/types'
 import { getSupabase, rowToSpot } from '@/lib/supabase'
+import { notifyNewSpot } from '@/lib/notify'
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
 
@@ -48,6 +49,12 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await getSupabase().from('spots').insert(row).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // 새 제보 알림(디스코드/슬랙 웹훅) — 실패해도 저장에는 영향 없음
+  await notifyNewSpot({
+    placeName: row.place_name, category: row.category, moment: row.moment,
+    nickname: row.nickname, title: row.title, sns: row.sns,
+  })
 
   return NextResponse.json(rowToSpot(data), { status: 201 })
 }
