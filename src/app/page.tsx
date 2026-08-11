@@ -461,7 +461,7 @@ export default function App() {
               </span>
               <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, alignItems: 'flex-start', gap: '1px' }}>
                 <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '17px' : '14px', fontWeight: 700, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
-                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '12px' : '11px', fontWeight: 500, color: dark ? 'rgba(233,231,247,0.72)' : '#B08968', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>숨은 낭만 열기</span>
+                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '12px' : '11px', fontWeight: 500, color: dark ? 'rgba(233,231,247,0.72)' : '#B08968', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>숨은 낭만젊음사랑 열기</span>
               </span>
               <span className="photo-sparkle" style={{ fontSize: isDesktop ? '19px' : '16px', lineHeight: 1, flexShrink: 0 }}>✨</span>
             </button>
