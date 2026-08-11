@@ -931,14 +931,18 @@ function CameraBooth({ photo, onCapture, onError, desktop = false }: {
   const capture = () => {
     const v = videoRef.current
     if (!v || !v.videoWidth) return
-    const w = v.videoWidth, h = v.videoHeight
-    const side = Math.min(w, h)               // 정사각형 크롭
+    const vw = v.videoWidth, vh = v.videoHeight
+    // 표시 비율(aspect = 가로/세로)에 맞춰 가운데 크롭
+    let cw = vw, chh = vh
+    if (vw / vh > aspect) { cw = Math.round(vh * aspect); chh = vh }   // 영상이 더 넓음 → 좌우 크롭
+    else { cw = vw; chh = Math.round(vw / aspect) }                    // 영상이 더 좁음 → 상하 크롭
+    const sx = (vw - cw) / 2, sy = (vh - chh) / 2
     const canvas = document.createElement('canvas')
-    canvas.width = side; canvas.height = side
+    canvas.width = cw; canvas.height = chh
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    ctx.translate(side, 0); ctx.scale(-1, 1)  // 좌우 반전(거울) — 미리보기와 동일하게
-    ctx.drawImage(v, (w - side) / 2, (h - side) / 2, side, side, 0, 0, side, side)
+    ctx.translate(cw, 0); ctx.scale(-1, 1)   // 좌우 반전(거울) — 미리보기와 동일하게
+    ctx.drawImage(v, sx, sy, cw, chh, 0, 0, cw, chh)
     const url = canvas.toDataURL('image/jpeg', 0.85)
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
@@ -958,10 +962,12 @@ function CameraBooth({ photo, onCapture, onError, desktop = false }: {
     window.setTimeout(tick, 1000)
   }
 
-  const box = desktop ? 300 : 260
+  // 데스크탑: 가로로 길게(와이드), 모바일: 살짝 가로형
+  const aspect = desktop ? 1.6 : 1.35        // 가로 / 세로 비율
+  const maxW   = desktop ? 560 : 340
   const frameStyle: React.CSSProperties = {
-    position: 'relative', width: '100%', maxWidth: `${box}px`, margin: '0 auto',
-    aspectRatio: '1 / 1', borderRadius: '18px', overflow: 'hidden',
+    position: 'relative', width: '100%', maxWidth: `${maxW}px`, margin: '0 auto',
+    aspectRatio: `${aspect} / 1`, borderRadius: '18px', overflow: 'hidden',
     background: '#141130', border: '1px solid #EDE9E4',
   }
 
@@ -1099,21 +1105,9 @@ function EntryGate({ onStart, desktop = false }: { onStart: (photo: string | nul
     </div>
   )
 
-  // 데스크탑: 좌(카메라) | 우(지역) 2분할 후 아래에 입장 버튼. 모바일: 세로 스택.
-  if (desktop) {
-    return (
-      <div style={{ width: '100%', maxWidth: '820px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '28px 36px', alignItems: 'flex-start' }}>
-          <div style={{ flex: '0 1 270px', minWidth: '240px' }}>{cameraSection}</div>
-          <div style={{ flex: '1 1 300px', minWidth: '240px' }}>{regionSection}</div>
-        </div>
-        {enterBlock}
-      </div>
-    )
-  }
-
+  // 세로 스택: (위)가로로 긴 카메라 → (아래)지역 선택 → 입장 버튼
   return (
-    <div style={{ width: '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ width: desktop ? '600px' : '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: desktop ? '34px' : '24px' }}>
       {cameraSection}
       {regionSection}
       {enterBlock}
