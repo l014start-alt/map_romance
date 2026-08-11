@@ -421,7 +421,6 @@ export default function App() {
                 </button>
               )}
               <span style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '26px' : '19px', color: dark ? '#F4D58A' : '#800020', lineHeight: 1 }}>낭만여지도</span>
-              {isDesktop && visitor && <VisitorBadge photo={visitor.photo} region={visitor.region} />}
             </div>
             {/* 우 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '14px' : '8px', flexShrink: 0 }}>
@@ -446,6 +445,15 @@ export default function App() {
           {isRead
             ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
+
+          {/* 입장 시 촬영한 사진 — 지도/사연 위에 떠 있는 아바타 */}
+          {visitor?.photo && (
+            <div style={{ position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 14px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.72)' : 'rgba(255,255,255,0.92)', border: `1px solid ${dark ? 'rgba(244,213,138,0.45)' : '#EDE9E4'}`, boxShadow: '0 4px 16px rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={visitor.photo} alt="" style={{ width: isDesktop ? '52px' : '44px', height: isDesktop ? '36px' : '30px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
+              <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '13px' : '11px', fontWeight: 600, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
+            </div>
+          )}
         </div>
 
         {/* 데스크탑(키오스크) 하단 고정 바 — 돌아가기 · 처음으로 · 낭만여지도 남기기 */}
@@ -831,8 +839,8 @@ function EntryIntro({ photo, region, onEnter, onBack }: { photo: string | null; 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: '#FAF8F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
 
-      {/* 촬영한 사진 — 원형으로 크게 */}
-      <div className="const-node" style={{ position: 'relative', width: '200px', height: '200px', borderRadius: '50%', background: '#FFFFFF', border: '1px solid #EDE9E4', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(128,0,32,0.10)', marginBottom: '34px' }}>
+      {/* 촬영한 사진 — 촬영 비율 그대로 크게(덜 잘리게), 부드러운 둥근 사각형 */}
+      <div className="const-node" style={{ position: 'relative', width: '100%', maxWidth: '440px', aspectRatio: '3 / 2', borderRadius: '26px', background: '#FFFFFF', border: '1px solid #EDE9E4', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 14px 36px rgba(128,0,32,0.12)', marginBottom: '34px' }}>
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
