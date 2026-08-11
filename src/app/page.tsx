@@ -86,6 +86,8 @@ export default function App() {
 
   // 입장 시 촬영한 사진(dataURL, 메모리에만 보관 → 새로고침 시 자동 삭제) + 출신 지역 (헤더 뱃지 표시용)
   const [visitor, setVisitor]     = useState<{ photo: string | null; region: string } | null>(null)
+  // 지도 좌상단 사진 아바타 클릭 → 사진 크게 보기
+  const [photoZoomOpen, setPhotoZoomOpen] = useState(false)
   // 새 두번째 페이지 모드: 별자리 지도(기본) ↔ 엽서 리더
   const [secondView, setSecondView] = useState<SecondView>('constellation')
   // 지도에서 특정 장소를 눌러 사연으로 들어올 때 시작 장소
@@ -446,13 +448,22 @@ export default function App() {
             ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
 
-          {/* 입장 시 촬영한 사진 — 지도/사연 위에 떠 있는 아바타 */}
+          {/* 입장 시 촬영한 사진 — 지도/사연 위에 떠 있는 아바타 (클릭 → 크게 보기) */}
           {visitor?.photo && (
-            <div style={{ position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 14px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.72)' : 'rgba(255,255,255,0.92)', border: `1px solid ${dark ? 'rgba(244,213,138,0.45)' : '#EDE9E4'}`, boxShadow: '0 4px 16px rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)' }}>
+            <button onClick={() => setPhotoZoomOpen(true)} title="사진 크게 보기"
+              style={{ position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 14px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.72)' : 'rgba(255,255,255,0.92)', border: `1px solid ${dark ? 'rgba(244,213,138,0.45)' : '#EDE9E4'}`, boxShadow: '0 4px 16px rgba(0,0,0,0.22)', backdropFilter: 'blur(6px)', cursor: 'pointer' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={visitor.photo} alt="" style={{ width: isDesktop ? '52px' : '44px', height: isDesktop ? '36px' : '30px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
               <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '13px' : '11px', fontWeight: 600, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
-            </div>
+              <svg width={isDesktop ? '15' : '13'} height={isDesktop ? '15' : '13'} viewBox="0 0 20 20" fill="none" stroke={dark ? '#F4D58A' : '#800020'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.85 }}>
+                <path d="M4 8V4h4M16 12v4h-4M4 4l5 5M16 16l-5-5" />
+              </svg>
+            </button>
+          )}
+
+          {/* 사진 크게 보기 모달 */}
+          {photoZoomOpen && visitor?.photo && (
+            <PhotoZoomModal photo={visitor.photo} region={visitor.region} onClose={() => setPhotoZoomOpen(false)} />
           )}
         </div>
 
@@ -801,6 +812,26 @@ function VisitorBadge({ photo, region, compact = false }: { photo: string | null
       <span style={{ fontFamily: FONT_UI, fontSize: compact ? '11px' : '12px', color: '#800020', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
         {region}에서 오심
       </span>
+    </div>
+  )
+}
+
+/* ── 사진 크게 보기 모달 — 촬영 원본을 그대로 크게 (필터 없음) ── */
+function PhotoZoomModal({ photo, region, onClose }: { photo: string; region: string; onClose: () => void }) {
+  return (
+    <div onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(8,6,20,0.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '16px' }}>
+      {/* 닫기 */}
+      <button onClick={onClose} aria-label="닫기"
+        style={{ position: 'fixed', top: '18px', right: '18px', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#F4F2EC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="5" x2="15" y2="15" /><line x1="15" y1="5" x2="5" y2="15" /></svg>
+      </button>
+
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', maxWidth: 'min(92vw, 640px)', width: '100%' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo} alt="" style={{ width: '100%', height: 'auto', maxHeight: '78vh', objectFit: 'contain', borderRadius: '18px', boxShadow: '0 24px 60px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)' }} />
+        <p style={{ fontFamily: FONT_UI, fontSize: '14px', fontWeight: 600, color: '#F4D58A', letterSpacing: '0.02em' }}>{region}에서 오심</p>
+      </div>
     </div>
   )
 }
