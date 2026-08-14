@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { placeName, address, lat, lng, category, moment, nickname, title, sns } = body
+  const { id, placeName, address, lat, lng, category, moment, nickname, title, sns } = body
 
   if (!placeName?.trim()) {
     return NextResponse.json({ error: '장소명은 필수입니다.' }, { status: 400 })
@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
   }
 
   const row = {
-    id: `spot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    // 클라이언트가 보낸 id 우선 사용(로컬 사본과 동일 id → 중복 방지). 없으면 생성.
+    id: (id as string | undefined)?.trim() || `spot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     place_name: (placeName as string).trim(),
     address: (address as string | undefined)?.trim() || null,
     lat: (lat as number | undefined) ?? null,

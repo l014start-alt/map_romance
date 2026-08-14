@@ -53,6 +53,12 @@ const FILTER_LABELS: Filter[] = ['all', '낭만', '젊음', '사랑']
 const FILTER_KR: Record<Filter, string> = { all: '전체', 낭만: '낭만', 젊음: '젊음', 사랑: '사랑' }
 const LS_KEY = 'map_romance_local_spots'
 
+/* 같은 사연인지 판별하는 내용 키 — 장소·글쓴이·본문이 같으면 동일 제보로 봄
+   (로컬 사본 local-… 과 서버 사본 spot-… 처럼 id만 다른 중복 제거용) */
+function contentKey(s: Spot): string {
+  return `${(s.placeName || '').trim()}|${(s.nickname || '').trim()}|${(s.moment || '').trim()}`
+}
+
 function groupSpots(spots: Spot[]): LocationGroup[] {
   const map = new Map<string, LocationGroup>()
   for (const spot of spots) {
@@ -125,17 +131,30 @@ export default function App() {
       }
     } catch { /* ignore */ }
 
-    // mock 데이터 + localStorage 병합 (로컬이 항상 우선)
-    const localIds = new Set(localSpots.map(s => s.id))
-    const mockOnly = MOCK_SPOTS.filter(s => !localIds.has(s.id))
-    setSpots([...localSpots, ...mockOnly])
+    // 로컬 자체 내용 중복 제거(이중 저장 방지) — 같은 사연이면 하나만
+    const seen = new Set<string>()
+    const dedupLocal = localSpots.filter(s => {
+      const k = contentKey(s); if (seen.has(k)) return false; seen.add(k); return true
+    })
 
-    // Supabase API 추가 (mock·local에 없는 것만)
+    // mock 데이터 + localStorage 병합 (로컬이 항상 우선, 내용 중복은 제외)
+    const localIds = new Set(dedupLocal.map(s => s.id))
+    const mockOnly = MOCK_SPOTS.filter(s => !localIds.has(s.id) && !seen.has(contentKey(s)))
+    mockOnly.forEach(s => seen.add(contentKey(s)))
+    setSpots([...dedupLocal, ...mockOnly])
+
+    // Supabase API 추가 — id가 새롭고 '내용도' 아직 없는 것만
+    // (서버 사본 spot-… 이 로컬 사본 local-… 과 내용 같으면 건너뜀 → 중복 표시 방지)
     fetch('/api/spots?approved=true')
       .then(r => r.json())
       .then((apiSpots: Spot[]) => {
-        const allKnownIds = new Set([...localSpots, ...MOCK_SPOTS].map(s => s.id))
-        const apiOnly = apiSpots.filter(s => !allKnownIds.has(s.id))
+        const knownIds = new Set([...dedupLocal, ...mockOnly].map(s => s.id))
+        const apiOnly = apiSpots.filter(s => {
+          const k = contentKey(s)
+          if (knownIds.has(s.id) || seen.has(k)) return false
+          seen.add(k) // API 목록 내부의 중복도 방지
+          return true
+        })
         setSpots(prev => [...prev, ...apiOnly])
       })
       .catch(() => {})
@@ -260,19 +279,25 @@ export default function App() {
       approved: true, createdAt: new Date().toISOString(),
     }
 
-    setSpots(prev => [newSpot, ...prev])
+    const key = contentKey(newSpot)
+    // 이미 같은 내용이 있으면(더블클릭 등) 다시 추가하지 않음
+    setSpots(prev => prev.some(s => contentKey(s) === key) ? prev : [newSpot, ...prev])
 
     try {
       const raw = localStorage.getItem(LS_KEY)
       const existing: Spot[] = raw ? JSON.parse(raw) : []
-      localStorage.setItem(LS_KEY, JSON.stringify([newSpot, ...existing]))
+      if (!existing.some(s => contentKey(s) === key)) {
+        localStorage.setItem(LS_KEY, JSON.stringify([newSpot, ...existing]))
+      }
     } catch { /* ignore */ }
 
-    // API: imageUrl(base64)·password 제외
+    // API: imageUrl(base64)·password 제외. id를 함께 보내 서버 사본과 로컬 사본의
+    // id를 일치시킴 → 새로고침 시 id 기준으로도 중복 방지.
     fetch('/api/spots', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        id: newSpot.id,
         placeName: data.placeName, address: data.address,
         lat: data.lat, lng: data.lng,
         category: data.category, moment: data.moment,
