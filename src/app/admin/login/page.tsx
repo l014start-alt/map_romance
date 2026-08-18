@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function AdminLoginPage() {
   const [pw, setPw] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,8 +18,8 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ password: pw }),
       })
       if (res.ok) {
-        router.push('/admin')
-        router.refresh()
+        // 전체 페이지 이동 — 방금 세팅한 쿠키를 확실히 실어 미들웨어를 통과(SPA 캐시/타이밍 회피)
+        window.location.href = '/admin'
       } else {
         const data = await res.json()
         setError((data as { error?: string }).error ?? '오류가 발생했습니다.')
