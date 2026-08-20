@@ -302,6 +302,7 @@ export default function App() {
         lat: data.lat, lng: data.lng,
         category: data.category, moment: data.moment,
         nickname: data.nickname, title: data.title, sns: data.sns,
+        password: data.password, // 작성자 수정용(서버 저장, GET엔 노출 안 됨)
       }),
     }).catch(() => {})
   }, [])

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Spot } from '@/types'
+import { Spot, Category } from '@/types'
 
 const FONT_UI = 'var(--font-sans)'
 const FONT_BRAND = 'var(--font-brand)'
@@ -54,10 +54,34 @@ interface DetailModalProps {
   onApprove: (id: string) => Promise<void>
   onUnapprove: (id: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onEdit: (id: string, fields: EditFields) => Promise<void>
 }
 
-function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete }: DetailModalProps) {
+type EditFields = { title: string; moment: string; category: Category; placeName: string }
+
+function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete, onEdit }: DetailModalProps) {
   const [busy, setBusy] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [eTitle, setETitle] = useState(spot.title ?? '')
+  const [eMoment, setEMoment] = useState(spot.moment)
+  const [eCategory, setECategory] = useState<Category>(spot.category)
+  const [ePlace, setEPlace] = useState(spot.placeName)
+  const [editErr, setEditErr] = useState('')
+
+  const saveEdit = async () => {
+    setEditErr('')
+    if (!eMoment.trim()) { setEditErr('사연을 입력해주세요.'); return }
+    if (!ePlace.trim()) { setEditErr('장소명을 입력해주세요.'); return }
+    setBusy(true)
+    try {
+      await onEdit(spot.id, { title: eTitle.trim(), moment: eMoment.trim(), category: eCategory, placeName: ePlace.trim() })
+      setEditing(false)
+    } catch (err) {
+      setEditErr(err instanceof Error ? err.message : '수정에 실패했어요.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true)
@@ -145,6 +169,50 @@ function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete }: Detail
 
         {/* 본문 */}
         <div style={{ padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+        {editing ? (
+          /* ── 수정 폼 ── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#800020', letterSpacing: '0.06em' }}>사연 수정</p>
+            {/* 카테고리 */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['낭만', '젊음', '사랑'] as Category[]).map(c => {
+                const on = eCategory === c
+                return (
+                  <button key={c} onClick={() => setECategory(c)}
+                    style={{ fontFamily: FONT_UI, fontSize: '12px', padding: '8px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#800020' : '#fff', color: on ? '#FAF8F5' : '#8A8480', cursor: 'pointer' }}>
+                    {c}
+                  </button>
+                )
+              })}
+            </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C0BEBB', letterSpacing: '0.14em', marginBottom: '6px' }}>제목</p>
+              <input value={eTitle} onChange={e => setETitle(e.target.value)} maxLength={60}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '14px', color: '#2A2520', background: '#fff', border: '1px solid #EDE9E4', outline: 'none' }} />
+            </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C0BEBB', letterSpacing: '0.14em', marginBottom: '6px' }}>사연</p>
+              <textarea value={eMoment} onChange={e => setEMoment(e.target.value)} rows={6}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '14px', color: '#2A2520', lineHeight: 1.8, background: '#fff', border: '1px solid #EDE9E4', outline: 'none', resize: 'vertical' }} />
+            </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C0BEBB', letterSpacing: '0.14em', marginBottom: '6px' }}>장소명</p>
+              <input value={ePlace} onChange={e => setEPlace(e.target.value)} maxLength={60}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '14px', color: '#2A2520', background: '#fff', border: '1px solid #EDE9E4', outline: 'none' }} />
+            </div>
+            {editErr && <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0392B' }}>{editErr}</p>}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button disabled={busy} onClick={() => { setEditing(false); setEditErr('') }}
+                style={{ flex: 1, padding: '13px 0', fontFamily: FONT_UI, fontSize: '11px', color: '#C0BEBB', border: '1px solid #EDE9E4', cursor: 'pointer' }}>취소</button>
+              <button disabled={busy} onClick={() => void saveEdit()}
+                style={{ flex: 2, padding: '13px 0', fontFamily: FONT_UI, fontSize: '11px', color: '#FAF8F5', background: busy ? '#B5B0AB' : '#800020', border: 'none', cursor: busy ? 'default' : 'pointer' }}>
+                {busy ? '저장 중…' : '저장'}
+              </button>
+            </div>
+          </div>
+        ) : (
+        <>
 
           {/* 카테고리 + 날짜 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -303,6 +371,15 @@ function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete }: Detail
             </button>
           </div>
 
+          {/* 내용 수정 진입 */}
+          <button onClick={() => setEditing(true)}
+            style={{ padding: '11px 0', fontFamily: FONT_UI, fontSize: '11px', letterSpacing: '0.06em', color: '#6B6560', background: 'transparent', border: '1px solid #E4DFD9', borderRadius: '2px', cursor: 'pointer' }}>
+            ✏️ 내용 수정
+          </button>
+
+        </>
+        )}
+
         </div>
       </div>
     </div>
@@ -317,9 +394,10 @@ interface SpotCardProps {
   onApprove: (id: string) => Promise<void>
   onUnapprove: (id: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onEdit: (id: string, fields: EditFields) => Promise<void>
 }
 
-function SpotCard({ spot, onApprove, onUnapprove, onDelete }: SpotCardProps) {
+function SpotCard({ spot, onApprove, onUnapprove, onDelete, onEdit }: SpotCardProps) {
   const [busy, setBusy] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
 
@@ -465,6 +543,7 @@ function SpotCard({ spot, onApprove, onUnapprove, onDelete }: SpotCardProps) {
           onApprove={onApprove}
           onUnapprove={onUnapprove}
           onDelete={onDelete}
+          onEdit={onEdit}
         />
       )}
     </>
@@ -526,6 +605,20 @@ export default function AdminPage() {
   const remove = async (id: string) => {
     await fetch(`/api/spots/${id}`, { method: 'DELETE' })
     setSpots((prev) => prev.filter((s) => s.id !== id))
+  }
+
+  const edit = async (id: string, fields: EditFields) => {
+    const res = await fetch(`/api/spots/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    })
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      throw new Error((e as { error?: string }).error ?? '수정에 실패했어요.')
+    }
+    const updated: Spot = await res.json()
+    setSpots((prev) => prev.map((s) => s.id === id ? { ...s, ...updated } : s))
   }
 
   const pending = spots.filter((s) => !s.approved)
@@ -623,6 +716,7 @@ export default function AdminPage() {
             onApprove={approve}
             onUnapprove={unapprove}
             onDelete={remove}
+            onEdit={edit}
           />
         ))}
       </div>
