@@ -307,6 +307,33 @@ export default function App() {
     }).catch(() => {})
   }, [])
 
+  /* ── 사연 수정(작성자 비밀번호) — 서버 저장 후 상태·localStorage 갱신 ── */
+  const editStoryOnServer = useCallback(async (
+    id: string,
+    fields: { title: string; moment: string; category: Category },
+    password: string,
+  ): Promise<Spot> => {
+    const res = await fetch(`/api/spots/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...fields, password }),
+    })
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      throw new Error((e as { error?: string }).error ?? '수정에 실패했어요.')
+    }
+    const updated: Spot = await res.json()
+    setSpots(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s))
+    try {
+      const raw = localStorage.getItem(LS_KEY)
+      if (raw) {
+        const arr = JSON.parse(raw) as Spot[]
+        localStorage.setItem(LS_KEY, JSON.stringify(arr.map(s => s.id === id ? { ...s, ...updated } : s)))
+      }
+    } catch { /* ignore */ }
+    return updated
+  }, [])
+
   /* ── 사연 삭제 ── */
   const handleDeleteStory = useCallback((id: string) => {
     setSpots(prev => prev.filter(s => s.id !== id))
@@ -473,7 +500,7 @@ export default function App() {
         {/* 본문 */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           {isRead
-            ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} />
+            ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} onEdit={editStoryOnServer} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
 
           {/* 입장 시 촬영한 사진 — 지도 위에 반짝이는 '별'처럼 (클릭 → 오늘의 낭만 열기) */}

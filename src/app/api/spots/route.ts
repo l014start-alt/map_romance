@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { id, placeName, address, lat, lng, category, moment, nickname, title, sns } = body
+  const { id, placeName, address, lat, lng, category, moment, nickname, title, sns, password } = body
 
   if (!placeName?.trim()) {
     return NextResponse.json({ error: '장소명은 필수입니다.' }, { status: 400 })
@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
     nickname: (nickname as string | undefined)?.trim() || null,
     title: (title as string | undefined)?.trim() || null,
     sns: (sns as string | undefined)?.trim() || null,
+    // 작성자 수정용 4자리 비밀번호 서버 저장 (GET엔 노출 안 함 — rowToSpot 제외)
+    password: (password as string | undefined)?.trim() || null,
     approved: false,
     created_at: new Date().toISOString(),
   }

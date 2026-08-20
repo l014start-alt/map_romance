@@ -27,11 +27,15 @@ export async function PUT(
     return NextResponse.json(rowToSpot(data))
   }
 
-  // ── 내용 수정 ──
-  // 현재 spots 테이블에 password 컬럼이 없어 작성자 비번 검증은 서버에서 불가.
-  // → 지금은 관리자(쿠키)만 수정 허용. (작성자 비번 수정은 password 컬럼 추가 후 활성화 예정)
+  // ── 내용 수정 (관리자 쿠키 or 작성자 4자리 비밀번호) ──
   if (!isAdmin) {
-    return NextResponse.json({ error: '수정 권한이 없습니다.' }, { status: 403 })
+    const { data: cur, error: curErr } = await sb.from('spots').select('password').eq('id', id).single()
+    if (curErr || !cur) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const pw = typeof body.password === 'string' ? body.password.trim() : ''
+    const stored = (cur as { password: string | null }).password
+    if (!stored || pw !== stored) {
+      return NextResponse.json({ error: '비밀번호가 일치하지 않습니다.' }, { status: 403 })
+    }
   }
 
   const upd: Record<string, unknown> = {}

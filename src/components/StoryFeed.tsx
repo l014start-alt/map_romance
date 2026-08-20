@@ -65,17 +65,52 @@ function SpotMiniMap({ spot }: { spot: Spot }) {
 }
 
 /* ── 상세: 좌 지도 / 우 내용 ── */
-function StoryDetail({ spot, desktop, onBack }: { spot: Spot; desktop: boolean; onBack: () => void }) {
+type EditFields = { title: string; moment: string; category: Category }
+
+function StoryDetail({ spot, desktop, onBack, onEdit }: { spot: Spot; desktop: boolean; onBack: () => void; onEdit?: (fields: EditFields, password: string) => Promise<void> }) {
   const color = CAT_COLOR[spot.category] ?? '#800020'
   const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(spot.placeName)}`
+
+  const [editing, setEditing] = useState(false)
+  const [eTitle, setETitle] = useState(spot.title ?? '')
+  const [eMoment, setEMoment] = useState(spot.moment)
+  const [eCategory, setECategory] = useState<Category>(spot.category)
+  const [pw, setPw] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const startEdit = () => {
+    setETitle(spot.title ?? ''); setEMoment(spot.moment); setECategory(spot.category)
+    setPw(''); setErr(''); setEditing(true)
+  }
+  const save = async () => {
+    if (!onEdit) return
+    setErr('')
+    if (!eMoment.trim()) { setErr('사연을 입력해주세요.'); return }
+    if (!pw.trim()) { setErr('작성 시 정한 비밀번호를 입력해주세요.'); return }
+    setBusy(true)
+    try {
+      await onEdit({ title: eTitle.trim(), moment: eMoment.trim(), category: eCategory }, pw.trim())
+      setEditing(false)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '수정에 실패했어요.')
+    } finally { setBusy(false) }
+  }
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#FAF8F5' }}>
-      {/* 상단 목록으로 */}
-      <div style={{ flexShrink: 0, padding: desktop ? '16px 28px' : '12px 16px', borderBottom: '1px solid #EDE9E4' }}>
-        <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '13px', color: '#6B6560', cursor: 'pointer', background: 'transparent', border: 'none' }}>
+      {/* 상단: 목록으로 + 수정 */}
+      <div style={{ flexShrink: 0, padding: desktop ? '16px 28px' : '12px 16px', borderBottom: '1px solid #EDE9E4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={editing ? () => setEditing(false) : onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '13px', color: '#6B6560', cursor: 'pointer', background: 'transparent', border: 'none' }}>
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13,4 7,10 13,16" /></svg>
-          목록으로
+          {editing ? '수정 취소' : '목록으로'}
         </button>
+        {onEdit && !editing && (
+          <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '12px', color: '#800020', cursor: 'pointer', background: '#FFF0F0', border: '1px solid #EBC9C9', borderRadius: '99px', padding: '6px 14px' }}>
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 13.5V16h2.5l8-8L12 5.5l-8 8Z" /><path d="M11 6.5 13.5 9" /></svg>
+            내 사연 수정
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: desktop ? 'row' : 'column' }}>
@@ -89,8 +124,44 @@ function StoryDetail({ spot, desktop, onBack }: { spot: Spot; desktop: boolean; 
           </div>
         </div>
 
-        {/* 우: 사연 내용 */}
+        {/* 우: 사연 내용 (읽기 / 수정) */}
         <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: desktop ? '40px 44px 56px' : '26px 22px 44px' }}>
+          {editing ? (
+          <div style={{ maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#800020', fontWeight: 600 }}>내 사연 수정</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['낭만', '젊음', '사랑'] as Category[]).map(c => {
+                const on = eCategory === c
+                return (
+                  <button key={c} onClick={() => setECategory(c)}
+                    style={{ fontFamily: FONT_UI, fontSize: '13px', padding: '8px 16px', borderRadius: '99px', border: `1.5px solid ${on ? '#800020' : '#EDE9E4'}`, background: on ? '#800020' : '#fff', color: on ? '#FAF8F5' : '#8A8480', cursor: 'pointer' }}>{c}</button>
+                )
+              })}
+            </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.1em', marginBottom: '6px' }}>제목</p>
+              <input value={eTitle} onChange={e => setETitle(e.target.value)} maxLength={60}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '15px', color: '#2A2520', background: '#fff', border: '1px solid #EDE9E4', outline: 'none' }} />
+            </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.1em', marginBottom: '6px' }}>사연</p>
+              <textarea value={eMoment} onChange={e => setEMoment(e.target.value)} rows={8}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '15px', color: '#2A2520', lineHeight: 1.9, background: '#fff', border: '1px solid #EDE9E4', outline: 'none', resize: 'vertical' }} />
+            </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.1em', marginBottom: '6px' }}>비밀번호 <span style={{ color: '#B08968' }}>(작성 시 정한 4자리)</span></p>
+              <input value={pw} onChange={e => setPw(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" placeholder="• • • •" maxLength={4}
+                style={{ width: '120px', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '15px', letterSpacing: '0.25em', color: '#2A2520', background: '#fff', border: '1px solid #EDE9E4', outline: 'none' }} />
+            </div>
+            {err && <p style={{ fontFamily: FONT_UI, fontSize: '12px', color: '#C0392B' }}>{err}</p>}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <button disabled={busy} onClick={() => setEditing(false)}
+                style={{ flex: 1, padding: '12px 0', fontFamily: FONT_UI, fontSize: '13px', color: '#8A8480', background: '#fff', border: '1px solid #EDE9E4', cursor: 'pointer' }}>취소</button>
+              <button disabled={busy} onClick={() => void save()}
+                style={{ flex: 2, padding: '12px 0', fontFamily: FONT_UI, fontSize: '13px', color: '#FAF8F5', background: busy ? '#B5B0AB' : '#800020', border: 'none', cursor: busy ? 'default' : 'pointer' }}>{busy ? '저장 중…' : '저장'}</button>
+            </div>
+          </div>
+          ) : (
           <div style={{ maxWidth: '620px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '11px', color, letterSpacing: '0.1em', fontWeight: 600 }}>
@@ -125,6 +196,7 @@ function StoryDetail({ spot, desktop, onBack }: { spot: Spot; desktop: boolean; 
               네이버 지도에서 보기
             </a>
           </div>
+          )}
         </div>
       </div>
     </div>
@@ -153,7 +225,7 @@ function FeedCard({ spot, onClick }: { spot: Spot; onClick: () => void }) {
   )
 }
 
-export default function StoryFeed({ spots, startPlaceName, desktop = false }: { spots: Spot[]; startPlaceName?: string; desktop?: boolean }) {
+export default function StoryFeed({ spots, startPlaceName, desktop = false, onEdit }: { spots: Spot[]; startPlaceName?: string; desktop?: boolean; onEdit?: (id: string, fields: EditFields, password: string) => Promise<Spot> }) {
   // 시간순(최신 먼저)
   const ordered = useMemo(() => [...spots].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [spots])
   const [selected, setSelected] = useState<Spot | null>(null)
@@ -167,7 +239,14 @@ export default function StoryFeed({ spots, startPlaceName, desktop = false }: { 
   }, [startPlaceName, ordered])
 
   if (selected) {
-    return <StoryDetail spot={selected} desktop={desktop} onBack={() => setSelected(null)} />
+    return (
+      <StoryDetail
+        spot={selected}
+        desktop={desktop}
+        onBack={() => setSelected(null)}
+        onEdit={onEdit ? async (fields, pw) => { const updated = await onEdit(selected.id, fields, pw); setSelected(updated) } : undefined}
+      />
+    )
   }
 
   const pageCount = Math.max(1, Math.ceil(ordered.length / PER_PAGE))
