@@ -28,8 +28,12 @@ export async function POST(req: NextRequest) {
   if (!CATEGORIES.includes(category as Category)) {
     return NextResponse.json({ error: '카테고리가 올바르지 않습니다.' }, { status: 400 })
   }
-  if (!moment?.trim() || (moment as string).trim().length > 500) {
-    return NextResponse.json({ error: '순간은 500자 이내로 입력해주세요.' }, { status: 400 })
+  if (!moment?.trim()) {
+    return NextResponse.json({ error: '사연을 입력해주세요.' }, { status: 400 })
+  }
+  // 글자수 제한 없음(사실상). 악성 초대용량만 방어하는 넉넉한 상한.
+  if ((moment as string).trim().length > 20000) {
+    return NextResponse.json({ error: '사연이 너무 깁니다.' }, { status: 400 })
   }
 
   const row = {

@@ -25,7 +25,6 @@ interface RecordModalProps {
 }
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
-const MOMENT_MAX = 500
 
 export default function RecordModal({ pin, desktop = false, onClose, onSubmit }: RecordModalProps) {
   const [nickname, setNickname]     = useState('')
@@ -57,12 +56,10 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
     title.trim().length > 0 &&
     category !== null &&
     moment.trim().length > 0 &&
-    moment.length <= MOMENT_MAX &&
     password.length === 4 &&
     !submitting && !compressing
 
   const handleMomentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (e.target.value.length > MOMENT_MAX) return
     setMoment(e.target.value)
     const el = e.target
     el.style.height = 'auto'
@@ -312,11 +309,13 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
             <textarea ref={textareaRef} value={moment} onChange={handleMomentChange}
               placeholder="이 장소에 대한 여러분의 사연을 적어주세요." rows={4}
               style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#111', lineHeight: 2.0, borderBottom: '1px solid #EDE9E4', paddingBottom: '12px', outline: 'none', resize: 'none', minHeight: '96px', wordBreak: 'keep-all' }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: moment.length >= MOMENT_MAX ? '#800020' : '#8C857F' }}>
-                {moment.length} / {MOMENT_MAX}
-              </span>
-            </div>
+            {moment.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#8C857F' }}>
+                  {moment.length}자
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 비밀번호 */}

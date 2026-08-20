@@ -6,7 +6,6 @@ import Footer from '@/components/Footer'
 import { Category } from '@/types'
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
-const MOMENT_MAX = 120
 const FONT_UI = 'var(--font-sans)'
 const FONT_BRAND = 'var(--font-brand)'
 
@@ -28,7 +27,6 @@ export default function ContributePage() {
     placeName.trim().length > 0 &&
     category !== null &&
     moment.trim().length > 0 &&
-    moment.length <= MOMENT_MAX &&
     !submitting
 
   const searchAddress = async () => {
@@ -59,7 +57,6 @@ export default function ContributePage() {
   }
 
   const handleMomentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (e.target.value.length > MOMENT_MAX) return
     setMoment(e.target.value)
     const el = e.target
     el.style.height = 'auto'
@@ -356,22 +353,13 @@ export default function ContributePage() {
               minHeight: '96px',
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-            <span style={{
-              fontFamily: FONT_UI,
-              fontSize: '9px',
-              color: moment.length >= MOMENT_MAX ? '#800020' : 'transparent',
-            }}>
-              {moment.length >= MOMENT_MAX ? '최대 글자수에 도달했어요.' : ''}
-            </span>
-            <span style={{
-              fontFamily: FONT_UI,
-              fontSize: '10px',
-              color: moment.length >= MOMENT_MAX ? '#800020' : '#C8C4C0',
-            }}>
-              {moment.length} / {MOMENT_MAX}
-            </span>
-          </div>
+          {moment.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C8C4C0' }}>
+                {moment.length}자
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 등록 버튼 */}
