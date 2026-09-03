@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Spot, Category, LocationGroup } from '@/types'
+import { Spot, Category, LocationGroup, storyHeadline } from '@/types'
 
 interface SpotSheetProps {
   group: LocationGroup
@@ -163,9 +163,7 @@ export default function SpotSheet({ group, onClose, onDelete, onUpdate, verifyPa
                         <span style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color, letterSpacing: '0.16em', fontWeight: 600 }}>{spot.category}</span>
                         <span style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.06em' }}>{formatDate(spot.createdAt)}</span>
                       </div>
-                      {spot.title && (
-                        <p style={{ fontFamily: 'var(--font-brand)', fontSize: '20px', color: '#111', lineHeight: 1.25, marginBottom: '5px', wordBreak: 'keep-all' }}>{spot.title}</p>
-                      )}
+                      <p style={{ fontFamily: 'var(--font-brand)', fontSize: '20px', color: '#111', lineHeight: 1.25, marginBottom: '5px', wordBreak: 'keep-all' }}>{storyHeadline(spot)}</p>
                       {spot.nickname && (
                         <p style={{ fontFamily: 'var(--font-brand)', fontSize: '13px', color: '#B5B0AB', marginBottom: '12px' }}>by {spot.nickname}</p>
                       )}

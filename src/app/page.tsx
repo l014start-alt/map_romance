@@ -11,7 +11,7 @@ import FeedView from '@/components/FeedView'
 import Footer from '@/components/Footer'
 import StoryFeed from '@/components/StoryFeed'             // 사연 피드(시간순 그리드 + 좌지도/우내용)
 import ConstellationMap from '@/components/ConstellationMap' // 별자리 지도(지도로 보기)
-import { Spot, Category, LocationGroup } from '@/types'
+import { Spot, Category, LocationGroup, VisitorType, storyHeadline } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
 import { saveVisitorSelection, setCollectionExcluded } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
 import { randomQuote } from '@/lib/quotes' // 낭젊사 매거진 글귀(사진 크게보기 랜덤 표시)
@@ -89,6 +89,8 @@ export default function App() {
 
   const [phase, setPhase]         = useState<RecordPhase>('idle')
   const [pin, setPin]             = useState<PinData | null>(null)
+  // 기록하기 흐름의 작성자 구분(현지인/관광객) — 위치 선택에서 고르고 폼이 그에 맞춰 열린다
+  const [visitorType, setVisitorType] = useState<VisitorType | null>(null)
   const [focusGroupKey, setFocusGroupKey] = useState<string | null>(null)
   const [locating, setLocating]   = useState(false)
 
@@ -254,27 +256,29 @@ export default function App() {
     )
   }
 
-  const startPicking    = () => { setPin(null); setPhase('picking'); setActiveGroupKey(null) }
+  const startPicking    = () => { setPin(null); setVisitorType(null); setPhase('picking'); setActiveGroupKey(null) }
   const confirmPin      = useCallback((overridePin?: PinData) => {
     const p = overridePin ?? pin
     if (p) { setPin(p); setPhase('preview') }
   }, [pin])
   const confirmPreview  = () => setPhase('form')
   const reselectPin     = () => { setPhase('picking') }
-  const closeRecord     = () => { setPhase('idle'); setPin(null) }
+  const closeRecord     = () => { setPhase('idle'); setPin(null); setVisitorType(null) }
 
   /* ── 폼 제출 ── */
   const handleSubmit = useCallback(async (data: {
     placeName: string; address?: string; lat?: number; lng?: number
     category: Category; moment: string; nickname: string
-    title?: string; sns?: string; imageUrl?: string; password?: string
+    visitorType: VisitorType; daeguAnswer?: string
+    sns?: string; imageUrl?: string; password?: string
   }) => {
     const newSpot: Spot = {
       id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       placeName: data.placeName, address: data.address,
       lat: data.lat, lng: data.lng,
       category: data.category, moment: data.moment,
-      nickname: data.nickname, title: data.title, sns: data.sns,
+      nickname: data.nickname, sns: data.sns,
+      visitorType: data.visitorType, daeguAnswer: data.daeguAnswer,
       imageUrl: data.imageUrl, password: data.password,
       approved: true, createdAt: new Date().toISOString(),
     }
@@ -301,7 +305,8 @@ export default function App() {
         placeName: data.placeName, address: data.address,
         lat: data.lat, lng: data.lng,
         category: data.category, moment: data.moment,
-        nickname: data.nickname, title: data.title, sns: data.sns,
+        nickname: data.nickname, sns: data.sns,
+        visitorType: data.visitorType, daeguAnswer: data.daeguAnswer,
         password: data.password, // 작성자 수정용(서버 저장, GET엔 노출 안 됨)
       }),
     }).catch(() => {})
@@ -310,7 +315,7 @@ export default function App() {
   /* ── 사연 수정(작성자 비밀번호) — 서버 저장 후 상태·localStorage 갱신 ── */
   const editStoryOnServer = useCallback(async (
     id: string,
-    fields: { title: string; moment: string; category: Category },
+    fields: { moment: string; category: Category; daeguAnswer: string },
     password: string,
   ): Promise<Spot> => {
     const res = await fetch(`/api/spots/${id}`, {
@@ -548,13 +553,13 @@ export default function App() {
 
         {/* 기록 오버레이 — 검색 기반(지도 불필요), 데스크탑/모바일 공용 */}
         {phase === 'picking' && (
-          <LocationPicker desktop pin={pin} onPinUpdate={handlePinUpdate} onMapFlyTo={handleMapFlyTo} onConfirm={confirmPin} onCancel={closeRecord} />
+          <LocationPicker desktop pin={pin} visitorType={visitorType} onVisitorTypeChange={setVisitorType} onPinUpdate={handlePinUpdate} onMapFlyTo={handleMapFlyTo} onConfirm={confirmPin} onCancel={closeRecord} />
         )}
         {phase === 'preview' && pin && (
           <PlacePreviewCard desktop pin={pin} onConfirm={confirmPreview} onReselect={reselectPin} />
         )}
         {phase === 'form' && (
-          <RecordModal pin={pin} desktop onClose={closeRecord} onSubmit={handleSubmit} />
+          <RecordModal pin={pin} visitorType={visitorType} onVisitorTypeChange={setVisitorType} desktop onClose={closeRecord} onSubmit={handleSubmit} />
         )}
       </div>
     )
@@ -624,6 +629,8 @@ export default function App() {
           <LocationPicker
             desktop
             pin={pin}
+            visitorType={visitorType}
+            onVisitorTypeChange={setVisitorType}
             onPinUpdate={handlePinUpdate}
             onMapFlyTo={handleMapFlyTo}
             onConfirm={confirmPin}
@@ -634,7 +641,7 @@ export default function App() {
           <PlacePreviewCard desktop pin={pin} onConfirm={confirmPreview} onReselect={reselectPin} />
         )}
         {phase === 'form' && (
-          <RecordModal pin={pin} desktop onClose={closeRecord} onSubmit={handleSubmit} />
+          <RecordModal pin={pin} visitorType={visitorType} onVisitorTypeChange={setVisitorType} desktop onClose={closeRecord} onSubmit={handleSubmit} />
         )}
       </div>
     )
@@ -766,6 +773,8 @@ export default function App() {
           {phase === 'picking' && (
             <LocationPicker
               pin={pin}
+              visitorType={visitorType}
+              onVisitorTypeChange={setVisitorType}
               onPinUpdate={handlePinUpdate}
               onMapFlyTo={handleMapFlyTo}
               onConfirm={confirmPin}
@@ -784,7 +793,7 @@ export default function App() {
 
           {/* RecordModal */}
           {phase === 'form' && (
-            <RecordModal pin={pin} onClose={closeRecord} onSubmit={handleSubmit} />
+            <RecordModal pin={pin} visitorType={visitorType} onVisitorTypeChange={setVisitorType} onClose={closeRecord} onSubmit={handleSubmit} />
           )}
         </>
       )}
@@ -1262,10 +1271,8 @@ function GalleryCard({ spot }: { spot: Spot }) {
           <span style={{ fontFamily: FONT_UI, fontSize: '9px', color: '#C0BEBB', letterSpacing: '0.06em' }}>{formatDate(spot.createdAt)}</span>
         </div>
 
-        {/* 제목 */}
-        {spot.title && (
-          <p style={{ fontFamily: FONT_BRAND, fontSize: '22px', color: '#111', lineHeight: 1.3, marginBottom: '4px', wordBreak: 'keep-all' }}>{spot.title}</p>
-        )}
+        {/* 큰 한 줄 — 제목(구버전) 또는 대구 한마디 */}
+        <p style={{ fontFamily: FONT_BRAND, fontSize: '22px', color: '#111', lineHeight: 1.3, marginBottom: '4px', wordBreak: 'keep-all' }}>{storyHeadline(spot)}</p>
         {/* 글쓴이 */}
         <p style={{ fontFamily: FONT_BRAND, fontSize: '13px', color: '#B5B0AB', marginBottom: '12px', letterSpacing: '0.02em' }}>by {spot.nickname || '익명'}</p>
 

@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { Spot, Category } from '@/types'
+import { Spot, Category, VisitorType } from '@/types'
 
 let _client: SupabaseClient | null = null
 let _adminClient: SupabaseClient | null = null
@@ -37,6 +37,8 @@ export function rowToSpot(row: Record<string, unknown>): Spot {
     moment: row.moment as string,
     nickname: (row.nickname as string) ?? '',
     title: (row.title as string) ?? undefined,
+    visitorType: (row.visitor_type as VisitorType) ?? undefined,
+    daeguAnswer: (row.daegu_answer as string) ?? undefined,
     sns: (row.sns as string) ?? undefined,
     imageUrl: (row.image_url as string) ?? undefined,
     approved: row.approved as boolean,

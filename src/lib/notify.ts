@@ -14,6 +14,8 @@ interface NewSpotInfo {
   nickname?: string | null
   title?: string | null
   sns?: string | null
+  visitorType?: string | null
+  daeguAnswer?: string | null
 }
 
 const ADMIN_URL = 'https://map-romance.vercel.app/admin'
@@ -24,12 +26,14 @@ export async function notifyNewSpot(spot: NewSpotInfo): Promise<void> {
   if (!url) return // 웹훅 미설정 → 아무 것도 안 함
 
   const moment = spot.moment.length > 140 ? `${spot.moment.slice(0, 140)}…` : spot.moment
+  const daegu = spot.daeguAnswer?.trim()
   const lines = [
     '🌟 **새 낭만여지도 제보가 도착했어요!**',
-    `· 제목: ${spot.title?.trim() || '(없음)'}`,
+    `· 구분: ${spot.visitorType?.trim() || '(미지정)'}`,
     `· 글쓴이: ${spot.nickname?.trim() || '익명'}`,
     `· 장소: ${spot.placeName} (${spot.category})`,
     `· 내용: ${moment}`,
+    ...(daegu ? [`· 대구란: ${daegu.length > 140 ? `${daegu.slice(0, 140)}…` : daegu}`] : []),
     `· 인스타: ${spot.sns?.trim() || '-'}`,
     `\n검토하기 → ${ADMIN_URL}`,
   ]

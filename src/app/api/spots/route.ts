@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Category } from '@/types'
+import { Category, VisitorType } from '@/types'
 import { getSupabase, rowToSpot } from '@/lib/supabase'
 import { notifyNewSpot } from '@/lib/notify'
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
+const VISITOR_TYPES: VisitorType[] = ['현지인', '관광객']
 
 export async function GET(req: NextRequest) {
   const approvedOnly = req.nextUrl.searchParams.get('approved') === 'true'
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { id, placeName, address, lat, lng, category, moment, nickname, title, sns, password } = body
+  const { id, placeName, address, lat, lng, category, moment, nickname, title, sns, password, visitorType, daeguAnswer } = body
 
   if (!placeName?.trim()) {
     return NextResponse.json({ error: '장소명은 필수입니다.' }, { status: 400 })
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
     moment: (moment as string).trim(),
     nickname: (nickname as string | undefined)?.trim() || null,
     title: (title as string | undefined)?.trim() || null,
+    // 작성자 구분(현지인/관광객)과 구분별 대구 질문 답
+    visitor_type: VISITOR_TYPES.includes(visitorType as VisitorType) ? (visitorType as VisitorType) : null,
+    daegu_answer: (daeguAnswer as string | undefined)?.trim() || null,
     sns: (sns as string | undefined)?.trim() || null,
     // 작성자 수정용 4자리 비밀번호 서버 저장 (GET엔 노출 안 함 — rowToSpot 제외)
     password: (password as string | undefined)?.trim() || null,
@@ -61,6 +65,7 @@ export async function POST(req: NextRequest) {
   await notifyNewSpot({
     placeName: row.place_name, category: row.category, moment: row.moment,
     nickname: row.nickname, title: row.title, sns: row.sns,
+    visitorType: row.visitor_type, daeguAnswer: row.daegu_answer,
   })
 
   return NextResponse.json(rowToSpot(data), { status: 201 })

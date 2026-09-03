@@ -6,12 +6,28 @@
    ══════════════════════════════════════════════════════════════ */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Spot, Category } from '@/types'
+import { Spot, Category, VisitorType, DAEGU_QUESTION, storyHeadline } from '@/types'
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_UI    = 'var(--font-sans)'
 const CAT_COLOR: Record<Category, string> = { 낭만: '#800020', 젊음: '#2A6040', 사랑: '#B0402B' }
 const PER_PAGE = 12
+
+/* 큰 분류 탭 — 전체 / 현지인 / 관광객 */
+type Bucket = 'all' | VisitorType
+const BUCKETS: Bucket[] = ['all', '현지인', '관광객']
+const BUCKET_LABEL: Record<Bucket, string> = { all: '전체', 현지인: '🏠 현지인', 관광객: '🧳 관광객' }
+const VT_COLOR: Record<VisitorType, string> = { 현지인: '#2A6040', 관광객: '#B0402B' }
+
+/* 구분 배지 */
+function VisitorBadge({ type, size = 'sm' }: { type: VisitorType; size?: 'sm' | 'md' }) {
+  const c = VT_COLOR[type]
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: FONT_UI, fontSize: size === 'md' ? '11px' : '10px', fontWeight: 600, color: c, background: `${c}12`, border: `1px solid ${c}33`, borderRadius: '99px', padding: size === 'md' ? '4px 10px' : '3px 8px', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+      {type === '현지인' ? '🏠' : '🧳'} {type}
+    </span>
+  )
+}
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -65,14 +81,14 @@ function SpotMiniMap({ spot }: { spot: Spot }) {
 }
 
 /* ── 상세: 좌 지도 / 우 내용 ── */
-type EditFields = { title: string; moment: string; category: Category }
+type EditFields = { moment: string; category: Category; daeguAnswer: string }
 
 function StoryDetail({ spot, desktop, onBack, onEdit }: { spot: Spot; desktop: boolean; onBack: () => void; onEdit?: (fields: EditFields, password: string) => Promise<void> }) {
   const color = CAT_COLOR[spot.category] ?? '#800020'
   const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(spot.placeName)}`
 
   const [editing, setEditing] = useState(false)
-  const [eTitle, setETitle] = useState(spot.title ?? '')
+  const [eDaegu, setEDaegu] = useState(spot.daeguAnswer ?? '')
   const [eMoment, setEMoment] = useState(spot.moment)
   const [eCategory, setECategory] = useState<Category>(spot.category)
   const [pw, setPw] = useState('')
@@ -80,7 +96,7 @@ function StoryDetail({ spot, desktop, onBack, onEdit }: { spot: Spot; desktop: b
   const [busy, setBusy] = useState(false)
 
   const startEdit = () => {
-    setETitle(spot.title ?? ''); setEMoment(spot.moment); setECategory(spot.category)
+    setEDaegu(spot.daeguAnswer ?? ''); setEMoment(spot.moment); setECategory(spot.category)
     setPw(''); setErr(''); setEditing(true)
   }
   const save = async () => {
@@ -90,7 +106,7 @@ function StoryDetail({ spot, desktop, onBack, onEdit }: { spot: Spot; desktop: b
     if (!pw.trim()) { setErr('작성 시 정한 비밀번호를 입력해주세요.'); return }
     setBusy(true)
     try {
-      await onEdit({ title: eTitle.trim(), moment: eMoment.trim(), category: eCategory }, pw.trim())
+      await onEdit({ moment: eMoment.trim(), category: eCategory, daeguAnswer: eDaegu.trim() }, pw.trim())
       setEditing(false)
     } catch (e) {
       setErr(e instanceof Error ? e.message : '수정에 실패했어요.')
@@ -139,8 +155,8 @@ function StoryDetail({ spot, desktop, onBack, onEdit }: { spot: Spot; desktop: b
               })}
             </div>
             <div>
-              <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.1em', marginBottom: '6px' }}>제목</p>
-              <input value={eTitle} onChange={e => setETitle(e.target.value)} maxLength={60}
+              <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', letterSpacing: '0.1em', marginBottom: '6px' }}>{DAEGU_QUESTION[spot.visitorType ?? '현지인']}</p>
+              <input value={eDaegu} onChange={e => setEDaegu(e.target.value)} maxLength={200}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '15px', color: '#2A2520', background: '#fff', border: '1px solid #EDE9E4', outline: 'none' }} />
             </div>
             <div>
@@ -163,17 +179,26 @@ function StoryDetail({ spot, desktop, onBack, onEdit }: { spot: Spot; desktop: b
           </div>
           ) : (
           <div style={{ maxWidth: '620px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>
+              {spot.visitorType && <VisitorBadge type={spot.visitorType} size="md" />}
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: '11px', color, letterSpacing: '0.1em', fontWeight: 600 }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
               </span>
               <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#B5B0AB' }}>{formatDate(spot.createdAt)}</span>
             </div>
 
-            {spot.title && (
-              <h2 style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '32px' : '26px', color: '#2A2520', lineHeight: 1.3, wordBreak: 'keep-all', marginBottom: '8px' }}>{spot.title}</h2>
-            )}
+            <h2 style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '32px' : '26px', color: '#2A2520', lineHeight: 1.3, wordBreak: 'keep-all', marginBottom: '8px' }}>{storyHeadline(spot)}</h2>
             <p style={{ fontFamily: FONT_BRAND, fontSize: '14px', color: '#B5B0AB', marginBottom: '26px' }}>by {spot.nickname || '익명'}</p>
+
+            {/* 대구 한마디 — 구분에 따라 질문이 다름 */}
+            {spot.daeguAnswer && (
+              <div style={{ background: '#FFFFFF', border: '1px solid #EDE9E4', borderLeft: `3px solid ${spot.visitorType ? VT_COLOR[spot.visitorType] : '#800020'}`, borderRadius: '4px', padding: desktop ? '18px 22px' : '15px 17px', marginBottom: '26px' }}>
+                <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#A89F98', letterSpacing: '0.12em', marginBottom: '8px' }}>
+                  {DAEGU_QUESTION[spot.visitorType ?? '현지인']}
+                </p>
+                <p style={{ fontFamily: FONT_BRAND, fontSize: desktop ? '21px' : '18px', color: '#2A2520', lineHeight: 1.6, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.daeguAnswer}</p>
+              </div>
+            )}
 
             {spot.imageUrl && (
               <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', marginBottom: '26px', background: '#F0EDE8' }}>
@@ -211,13 +236,16 @@ function FeedCard({ spot, onClick }: { spot: Spot; onClick: () => void }) {
     <button type="button" onClick={onClick}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ textAlign: 'left', background: '#FFFFFF', border: `1px solid ${hover ? '#E4D5D5' : '#EDEAE5'}`, borderRadius: '14px', padding: '18px 20px 20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', boxShadow: hover ? '0 10px 26px rgba(0,0,0,0.09)' : '0 2px 8px rgba(0,0,0,0.04)', transform: hover ? 'translateY(-3px)' : 'translateY(0)', transition: 'all 0.2s ease', minHeight: '176px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '10px', color, letterSpacing: '0.12em', fontWeight: 600 }}>
-          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
-        </span>
-        <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB' }}>{formatDate(spot.createdAt)}</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+          {spot.visitorType && <VisitorBadge type={spot.visitorType} />}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '10px', color, letterSpacing: '0.12em', fontWeight: 600 }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
+          </span>
+        </div>
+        <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', flexShrink: 0 }}>{formatDate(spot.createdAt)}</span>
       </div>
-      <p style={{ fontFamily: FONT_BRAND, fontSize: '20px', color: '#2A2520', lineHeight: 1.3, wordBreak: 'keep-all', marginBottom: '4px' }}>{spot.title || '무제'}</p>
+      <p style={{ fontFamily: FONT_BRAND, fontSize: '20px', color: '#2A2520', lineHeight: 1.3, wordBreak: 'keep-all', marginBottom: '4px' }}>{storyHeadline(spot)}</p>
       <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#8A8480', marginBottom: '10px', wordBreak: 'keep-all' }}>📍 {spot.placeName}</p>
       <p style={{ fontFamily: FONT_UI, fontSize: '13px', color: '#6B6560', lineHeight: 1.7, wordBreak: 'keep-all', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', flex: 1 }}>{spot.moment}</p>
       <p style={{ fontFamily: FONT_BRAND, fontSize: '12px', color: '#B5B0AB', marginTop: '12px' }}>by {spot.nickname || '익명'}</p>
@@ -227,16 +255,25 @@ function FeedCard({ spot, onClick }: { spot: Spot; onClick: () => void }) {
 
 export default function StoryFeed({ spots, startPlaceName, desktop = false, onEdit }: { spots: Spot[]; startPlaceName?: string; desktop?: boolean; onEdit?: (id: string, fields: EditFields, password: string) => Promise<Spot> }) {
   // 시간순(최신 먼저)
-  const ordered = useMemo(() => [...spots].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [spots])
+  const all = useMemo(() => [...spots].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [spots])
   const [selected, setSelected] = useState<Spot | null>(null)
+  const [bucket, setBucket] = useState<Bucket>('all')
   const [page, setPage] = useState(0)
+
+  // 큰 분류(전체/현지인/관광객)로 먼저 거른다
+  const ordered = useMemo(() => bucket === 'all' ? all : all.filter(s => s.visitorType === bucket), [all, bucket])
+  const counts = useMemo(() => ({
+    all: all.length,
+    현지인: all.filter(s => s.visitorType === '현지인').length,
+    관광객: all.filter(s => s.visitorType === '관광객').length,
+  } as Record<Bucket, number>), [all])
 
   // 지도에서 특정 장소로 진입 시 그 장소의 최신 사연 상세로
   useEffect(() => {
     if (!startPlaceName) return
-    const s = ordered.find(x => x.placeName === startPlaceName)
+    const s = all.find(x => x.placeName === startPlaceName)
     if (s) setSelected(s)
-  }, [startPlaceName, ordered])
+  }, [startPlaceName, all])
 
   if (selected) {
     return (
@@ -255,10 +292,27 @@ export default function StoryFeed({ spots, startPlaceName, desktop = false, onEd
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#FAF8F5' }}>
-      <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: desktop ? '28px 40px' : '18px 16px' }}>
+      {/* 큰 분류 탭 — 전체 / 현지인 / 관광객 */}
+      <div style={{ flexShrink: 0, display: 'flex', gap: '8px', padding: desktop ? '20px 40px 0' : '14px 16px 0' }}>
+        {BUCKETS.map(b => {
+          const on = bucket === b
+          const c = b === 'all' ? '#800020' : VT_COLOR[b]
+          return (
+            <button key={b} type="button" onClick={() => { setBucket(b); setPage(0) }} aria-pressed={on}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: FONT_UI, fontSize: desktop ? '14px' : '13px', fontWeight: on ? 600 : 400, color: on ? '#FAF8F5' : '#8A8480', background: on ? c : '#FFFFFF', border: `1.5px solid ${on ? c : '#EDE9E4'}`, borderRadius: '99px', padding: desktop ? '9px 20px' : '8px 15px', cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap' }}>
+              {BUCKET_LABEL[b]}
+              <span style={{ fontSize: '11px', color: on ? 'rgba(250,248,245,0.75)' : '#C0BEBB' }}>{counts[b]}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: desktop ? '20px 40px 28px' : '14px 16px 18px' }}>
         {ordered.length === 0 ? (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-            <p style={{ fontFamily: FONT_BRAND, fontSize: '24px', color: '#C0BEBB' }}>아직 사연이 없어요</p>
+            <p style={{ fontFamily: FONT_BRAND, fontSize: '24px', color: '#C0BEBB' }}>
+              {bucket === 'all' ? '아직 사연이 없어요' : `아직 ${bucket}의 사연이 없어요`}
+            </p>
           </div>
         ) : (
           <>

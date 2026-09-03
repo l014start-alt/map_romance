@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Spot, Category } from '@/types'
+import { Spot, Category, DAEGU_QUESTION, storyHeadline } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
 import { DAEGU_MAP } from '@/lib/daeguMap'
 
@@ -498,13 +498,20 @@ function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expan
       <button type="button" onClick={single ? undefined : onToggle} aria-expanded={expanded}
         style={{ width: '100%', textAlign: 'left', padding: '13px 15px', background: 'transparent', border: 'none', cursor: single ? 'default' : 'pointer' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '11px', color, letterSpacing: '0.1em' }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            {spot.visitorType && (
+              <span style={{ fontFamily: FONT_UI, fontSize: '10px', fontWeight: 600, color: 'rgba(228,231,246,0.9)', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '99px', padding: '2px 8px', letterSpacing: '0.04em' }}>
+                {spot.visitorType === '현지인' ? '🏠 현지인' : '🧳 관광객'}
+              </span>
+            )}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '11px', color, letterSpacing: '0.1em' }}>
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
+            </span>
           </span>
           <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: 'rgba(205,210,235,0.45)' }}>{formatDate(spot.createdAt)}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-          <p style={{ flex: 1, fontFamily: FONT_BRAND, fontSize: '21px', color: '#F3EEE0', lineHeight: 1.3, wordBreak: 'keep-all' }}>{spot.title || '무제'}</p>
+          <p style={{ flex: 1, fontFamily: FONT_BRAND, fontSize: '21px', color: '#F3EEE0', lineHeight: 1.3, wordBreak: 'keep-all' }}>{storyHeadline(spot)}</p>
           {!single && (
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="rgba(205,210,235,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               style={{ flexShrink: 0, marginTop: '4px', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -531,6 +538,12 @@ function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expan
             </div>
           )}
           <p style={{ fontFamily: FONT_BRAND, fontSize: '13px', color: 'rgba(205,210,235,0.5)', marginBottom: '11px' }}>by {spot.nickname || '익명'}</p>
+          {spot.daeguAnswer && (
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '8px', padding: '12px 14px', marginBottom: '13px' }}>
+              <p style={{ fontFamily: FONT_UI, fontSize: '10px', color: 'rgba(205,210,235,0.5)', letterSpacing: '0.1em', marginBottom: '6px' }}>{DAEGU_QUESTION[spot.visitorType ?? '현지인']}</p>
+              <p style={{ fontFamily: FONT_BRAND, fontSize: '17px', color: '#F3EEE0', lineHeight: 1.5, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.daeguAnswer}</p>
+            </div>
+          )}
           <p style={{ fontFamily: FONT_UI, fontSize: '15px', color: 'rgba(228,231,246,0.9)', lineHeight: 1.95, wordBreak: 'keep-all', whiteSpace: 'pre-line' }}>{spot.moment}</p>
           {spot.sns && (
             <p style={{ fontFamily: FONT_UI, fontSize: '12.5px', color: 'rgba(150,178,235,0.85)', marginTop: '14px', wordBreak: 'break-all' }}>🔗 {spot.sns}</p>

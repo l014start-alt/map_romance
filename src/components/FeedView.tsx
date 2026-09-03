@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Spot } from '@/types'
+import { Spot, storyHeadline } from '@/types'
 
 interface FeedViewProps {
   spots: Spot[]
@@ -46,12 +46,10 @@ function FeedCard({ spot, onGoToPlace }: { spot: Spot; onGoToPlace: (s: Spot) =>
           </span>
         </div>
 
-        {/* 제목 */}
-        {spot.title && (
-          <p style={{ fontFamily: 'var(--font-brand)', fontSize: '20px', color: '#111', lineHeight: 1.3, marginBottom: '4px', wordBreak: 'keep-all' }}>
-            {spot.title}
-          </p>
-        )}
+        {/* 큰 한 줄 — 제목(구버전) 또는 대구 한마디 */}
+        <p style={{ fontFamily: 'var(--font-brand)', fontSize: '20px', color: '#111', lineHeight: 1.3, marginBottom: '4px', wordBreak: 'keep-all' }}>
+          {storyHeadline(spot)}
+        </p>
 
         {/* 닉네임 */}
         <p style={{ fontFamily: 'var(--font-brand)', fontSize: '13px', color: '#B5B0AB', marginBottom: '12px', letterSpacing: '0.02em' }}>

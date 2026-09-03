@@ -149,7 +149,7 @@ export default function PostcardReader({ spots, startPlaceName }: { spots: Spot[
           </div>
 
           {/* 제목 → 본문 순서로 타자기 효과 (사연이 바뀌면 처음부터) */}
-          <TypedStory key={spot.id} title={spot.title ?? ''} nickname={spot.nickname || '익명'} body={spot.moment} />
+          <TypedStory key={spot.id} title={spot.title ?? spot.daeguAnswer ?? ''} nickname={spot.nickname || '익명'} body={spot.moment} />
 
           {/* 장소 */}
           <a href={naverUrl} target="_blank" rel="noopener noreferrer"

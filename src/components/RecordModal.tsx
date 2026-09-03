@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useRef, useEffect, FormEvent } from 'react'
-import { Category } from '@/types'
+import { Category, VisitorType, DAEGU_QUESTION } from '@/types'
 import { compressImageToBase64 } from '@/lib/imageUtils'
 import type { PinData } from './LocationPicker'
 
 interface RecordModalProps {
   pin: PinData | null
+  /** 위치 선택 단계에서 고른 현지인/관광객 — 폼 질문이 여기에 맞춰 바뀐다 */
+  visitorType: VisitorType | null
+  onVisitorTypeChange: (v: VisitorType) => void
   desktop?: boolean
   onClose: () => void
   onSubmit: (data: {
@@ -17,7 +20,8 @@ interface RecordModalProps {
     category: Category
     moment: string
     nickname: string
-    title?: string
+    visitorType: VisitorType
+    daeguAnswer?: string
     sns?: string
     imageUrl?: string
     password?: string
@@ -25,13 +29,14 @@ interface RecordModalProps {
 }
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
+const VISITOR_TYPES: VisitorType[] = ['현지인', '관광객']
 
-export default function RecordModal({ pin, desktop = false, onClose, onSubmit }: RecordModalProps) {
+export default function RecordModal({ pin, visitorType, onVisitorTypeChange, desktop = false, onClose, onSubmit }: RecordModalProps) {
   const [nickname, setNickname]     = useState('')
   const [placeName, setPlaceName]   = useState(pin?.placeName ?? '')
   const [address, setAddress]       = useState(pin?.address ?? '')
   const [category, setCategory]     = useState<Category | null>(null)
-  const [title, setTitle]           = useState('')
+  const [daeguAnswer, setDaeguAnswer] = useState('')
   const [sns, setSns]               = useState('')
   const [moment, setMoment]         = useState('')
   const [password, setPassword]     = useState('')
@@ -39,10 +44,13 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
   const [compressing, setCompressing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone]             = useState(false)
-  const [titleError, setTitleError]   = useState('')
+  const [typeError, setTypeError]   = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const titleRef     = useRef<HTMLInputElement>(null)
+  const daeguRef     = useRef<HTMLTextAreaElement>(null)
+
+  // 구분에 따라 달라지는 대구 질문 (미선택이면 현지인 문구를 기본으로 보여줌)
+  const daeguQuestion = DAEGU_QUESTION[visitorType ?? '현지인']
 
   useEffect(() => { setAddress(pin?.address ?? '') }, [pin])
   useEffect(() => {
@@ -53,7 +61,8 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
   const canSubmit =
     nickname.trim().length > 0 &&
     placeName.trim().length > 0 &&
-    title.trim().length > 0 &&
+    visitorType !== null &&
+    daeguAnswer.trim().length > 0 &&
     category !== null &&
     moment.trim().length > 0 &&
     password.length === 4 &&
@@ -88,12 +97,15 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) {
-      setTitleError('제목을 입력해 주세요.')
-      titleRef.current?.focus()
+    if (!visitorType) {
+      setTypeError('현지인인지 관광객인지 골라주세요.')
       return
     }
-    setTitleError('')
+    setTypeError('')
+    if (!daeguAnswer.trim()) {
+      daeguRef.current?.focus()
+      return
+    }
     if (!canSubmit || !category) return
     setSubmitting(true)
     try {
@@ -103,7 +115,8 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
         lat: pin?.lat, lng: pin?.lng,
         category, moment: moment.trim(),
         nickname: nickname.trim(),
-        title: title.trim() || undefined,
+        visitorType,
+        daeguAnswer: daeguAnswer.trim() || undefined,
         sns: sns.trim() || undefined,
         imageUrl,
         password: password || undefined,
@@ -168,7 +181,29 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
 
         <form onSubmit={handleSubmit} style={{ padding: '28px 24px 48px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
-          {/* 사진 첨부 — 폼 맨 위에 배치해 시인성 확보 */}
+          {/* 구분 — 위치 선택에서 고른 값이 들어오고, 여기서도 바꿀 수 있다 */}
+          <div>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: typeError ? '#800020' : '#867F79', letterSpacing: '0.18em', marginBottom: '12px' }}>
+              구분 <span style={{ color: '#800020' }}>*</span>
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {VISITOR_TYPES.map((v) => {
+                const on = visitorType === v
+                return (
+                  <button key={v} type="button" aria-pressed={on}
+                    onClick={() => { onVisitorTypeChange(v); setTypeError('') }}
+                    style={{ flex: 1, padding: '11px 0', borderRadius: '8px', border: `1.5px solid ${on ? '#800020' : (typeError ? '#E4C9C9' : '#EDE9E4')}`, background: on ? '#800020' : '#FFFFFF', color: on ? '#FAF8F5' : '#867F79', fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: on ? 600 : 400, cursor: 'pointer', transition: 'all 0.18s' }}>
+                    {v === '현지인' ? '🏠 현지인' : '🧳 관광객'}
+                  </button>
+                )
+              })}
+            </div>
+            {typeError && (
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#800020', marginTop: '8px', letterSpacing: '0.02em' }}>{typeError}</p>
+            )}
+          </div>
+
+          {/* 사진 첨부 */}
           <div>
             <p style={{ fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '12px' }}>
               사진 첨부 <span style={{ color: '#A89F98' }}>(선택)</span>
@@ -282,25 +317,27 @@ export default function RecordModal({ pin, desktop = false, onClose, onSubmit }:
             </div>
           </div>
 
-          {/* 제목 */}
+          {/* 대구 질문 — 현지인이면 '나에게 대구란?', 관광객이면 '내가 바라본 대구는?' */}
           <div>
-            <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '9px', color: '#867F79', letterSpacing: '0.18em', marginBottom: '14px' }}>
-              제목 <span style={{ color: '#800020' }}>*</span>
+            <label style={{ display: 'block', fontFamily: 'var(--font-brand)', fontSize: '20px', color: '#800020', marginBottom: '6px', lineHeight: 1.25 }}>
+              {daeguQuestion}
             </label>
-            <input
-              ref={titleRef}
-              type="text"
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError('') }}
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#8C857F', marginBottom: '14px', letterSpacing: '0.02em' }}>
+              한 문장이어도 좋아요.
+            </p>
+            <textarea
+              ref={daeguRef}
+              value={daeguAnswer}
+              onChange={(e) => {
+                setDaeguAnswer(e.target.value)
+                const el = e.target
+                el.style.height = 'auto'
+                el.style.height = `${el.scrollHeight}px`
+              }}
               placeholder=""
-              maxLength={60}
-              style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-brand)', fontSize: '18px', color: '#111', paddingBottom: '12px', outline: 'none', borderBottom: `1px solid ${titleError ? '#800020' : '#EDE9E4'}` }}
+              rows={2}
+              style={{ width: '100%', background: 'transparent', fontFamily: 'var(--font-brand)', fontSize: '18px', color: '#111', lineHeight: 1.8, paddingBottom: '12px', outline: 'none', borderBottom: '1px solid #EDE9E4', resize: 'none', minHeight: '52px', wordBreak: 'keep-all' }}
             />
-            {titleError && (
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: '#800020', marginTop: '6px', letterSpacing: '0.02em' }}>
-                {titleError}
-              </p>
-            )}
           </div>
 
           {/* 순간 기록 */}

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSupabase, rowToSpot } from '@/lib/supabase'
-import { Category } from '@/types'
+import { Category, VisitorType } from '@/types'
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
+const VISITOR_TYPES: VisitorType[] = ['현지인', '관광객']
 
 export async function PUT(
   req: NextRequest,
@@ -14,7 +15,7 @@ export async function PUT(
   const isAdmin = req.cookies.get('admin_session')?.value === process.env.ADMIN_PASSWORD?.trim()
 
   // 내용 수정 필드가 하나라도 있으면 '수정' 처리, 아니면 승인 토글
-  const hasContent = ['title', 'moment', 'category', 'placeName', 'sns'].some(k => body[k] !== undefined)
+  const hasContent = ['title', 'moment', 'category', 'placeName', 'sns', 'visitorType', 'daeguAnswer'].some(k => body[k] !== undefined)
 
   if (!hasContent) {
     // ── 승인 토글 (관리자) ──
@@ -41,6 +42,14 @@ export async function PUT(
   const upd: Record<string, unknown> = {}
   if (typeof body.title === 'string') upd.title = body.title.trim() || null
   if (typeof body.sns === 'string') upd.sns = body.sns.trim() || null
+  if (typeof body.daeguAnswer === 'string') upd.daegu_answer = body.daeguAnswer.trim() || null
+  if (typeof body.visitorType === 'string') {
+    const v = body.visitorType.trim()
+    if (v && !VISITOR_TYPES.includes(v as VisitorType)) {
+      return NextResponse.json({ error: '구분이 올바르지 않습니다.' }, { status: 400 })
+    }
+    upd.visitor_type = v || null
+  }
   if (typeof body.placeName === 'string') {
     if (!body.placeName.trim()) return NextResponse.json({ error: '장소명은 비울 수 없습니다.' }, { status: 400 })
     upd.place_name = body.placeName.trim()

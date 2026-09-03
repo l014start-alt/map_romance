@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Spot, Category } from '@/types'
+import { Spot, Category, VisitorType, DAEGU_QUESTION } from '@/types'
 
 const FONT_UI = 'var(--font-sans)'
 const FONT_BRAND = 'var(--font-brand)'
@@ -57,7 +57,7 @@ interface DetailModalProps {
   onEdit: (id: string, fields: EditFields) => Promise<void>
 }
 
-type EditFields = { title: string; moment: string; category: Category; placeName: string }
+type EditFields = { title: string; moment: string; category: Category; placeName: string; visitorType: string; daeguAnswer: string }
 
 function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete, onEdit }: DetailModalProps) {
   const [busy, setBusy] = useState(false)
@@ -66,6 +66,8 @@ function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete, onEdit }
   const [eMoment, setEMoment] = useState(spot.moment)
   const [eCategory, setECategory] = useState<Category>(spot.category)
   const [ePlace, setEPlace] = useState(spot.placeName)
+  const [eVType, setEVType] = useState<VisitorType | ''>(spot.visitorType ?? '')
+  const [eDaegu, setEDaegu] = useState(spot.daeguAnswer ?? '')
   const [editErr, setEditErr] = useState('')
 
   const saveEdit = async () => {
@@ -74,7 +76,7 @@ function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete, onEdit }
     if (!ePlace.trim()) { setEditErr('장소명을 입력해주세요.'); return }
     setBusy(true)
     try {
-      await onEdit(spot.id, { title: eTitle.trim(), moment: eMoment.trim(), category: eCategory, placeName: ePlace.trim() })
+      await onEdit(spot.id, { title: eTitle.trim(), moment: eMoment.trim(), category: eCategory, placeName: ePlace.trim(), visitorType: eVType, daeguAnswer: eDaegu.trim() })
       setEditing(false)
     } catch (err) {
       setEditErr(err instanceof Error ? err.message : '수정에 실패했어요.')
@@ -201,6 +203,25 @@ function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete, onEdit }
               <input value={ePlace} onChange={e => setEPlace(e.target.value)} maxLength={60}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '14px', color: '#2A2520', background: '#fff', border: '1px solid #EDE9E4', outline: 'none' }} />
             </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C0BEBB', letterSpacing: '0.14em', marginBottom: '6px' }}>구분</p>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {(['현지인', '관광객', ''] as (VisitorType | '')[]).map(v => {
+                  const on = eVType === v
+                  return (
+                    <button key={v || 'none'} type="button" onClick={() => setEVType(v)}
+                      style={{ flex: 1, padding: '9px 0', fontFamily: FONT_UI, fontSize: '12px', color: on ? '#FAF8F5' : '#8A8480', background: on ? '#800020' : '#fff', border: `1px solid ${on ? '#800020' : '#EDE9E4'}`, borderRadius: '6px', cursor: 'pointer' }}>
+                      {v || '미지정'}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C0BEBB', letterSpacing: '0.14em', marginBottom: '6px' }}>{DAEGU_QUESTION[(eVType || '현지인') as VisitorType]}</p>
+              <input value={eDaegu} onChange={e => setEDaegu(e.target.value)} maxLength={200}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontFamily: FONT_UI, fontSize: '14px', color: '#2A2520', background: '#fff', border: '1px solid #EDE9E4', outline: 'none' }} />
+            </div>
             {editErr && <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0392B' }}>{editErr}</p>}
             <div style={{ display: 'flex', gap: '8px' }}>
               <button disabled={busy} onClick={() => { setEditing(false); setEditErr('') }}
@@ -214,20 +235,39 @@ function DetailModal({ spot, onClose, onApprove, onUnapprove, onDelete, onEdit }
         ) : (
         <>
 
-          {/* 카테고리 + 날짜 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{
-              fontFamily: FONT_UI, fontSize: '10px',
-              color: CATEGORY_COLOR[spot.category] ?? '#800020',
-              letterSpacing: '0.12em',
-              padding: '3px 8px',
-              border: `1px solid ${CATEGORY_COLOR[spot.category] ?? '#800020'}33`,
-              borderRadius: '2px',
-            }}>
-              {spot.category}
-            </span>
+          {/* 구분 + 카테고리 + 날짜 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                fontFamily: FONT_UI, fontSize: '10px', fontWeight: 600,
+                color: spot.visitorType ? '#FAF8F5' : '#B5B0AB',
+                background: spot.visitorType === '현지인' ? '#2A6040' : spot.visitorType === '관광객' ? '#B0402B' : 'transparent',
+                letterSpacing: '0.08em', padding: '3px 8px',
+                border: `1px solid ${spot.visitorType ? 'transparent' : '#EDE9E4'}`, borderRadius: '2px',
+              }}>
+                {spot.visitorType ?? '미지정'}
+              </span>
+              <span style={{
+                fontFamily: FONT_UI, fontSize: '10px',
+                color: CATEGORY_COLOR[spot.category] ?? '#800020',
+                letterSpacing: '0.12em',
+                padding: '3px 8px',
+                border: `1px solid ${CATEGORY_COLOR[spot.category] ?? '#800020'}33`,
+                borderRadius: '2px',
+              }}>
+                {spot.category}
+              </span>
+            </div>
             <span style={{ fontFamily: FONT_UI, fontSize: '9px', color: '#C8C4C0' }}>{date}</span>
           </div>
+
+          {/* 대구 한마디 */}
+          {spot.daeguAnswer && (
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C0BEBB', letterSpacing: '0.14em', marginBottom: '6px' }}>{DAEGU_QUESTION[spot.visitorType ?? '현지인']}</p>
+              <p style={{ fontFamily: FONT_BRAND, fontSize: '18px', color: '#2A2520', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{spot.daeguAnswer}</p>
+            </div>
+          )}
 
           {/* 제목 */}
           {spot.title && (

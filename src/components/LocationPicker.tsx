@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type CSSProperties } from 'react'
 import QRCode from './QRCode'
+import { VisitorType } from '@/types'
 
 export interface PinData {
   lat: number
@@ -21,8 +22,17 @@ interface SearchResult {
   placeName?: string
 }
 
+/* 현지인/관광객 선택 카드 문구 */
+const VISITOR_OPTIONS: { value: VisitorType; emoji: string; sub: string }[] = [
+  { value: '현지인', emoji: '🏠', sub: '대구에 살아요' },
+  { value: '관광객', emoji: '🧳', sub: '대구에 놀러 왔어요' },
+]
+
 interface LocationPickerProps {
   pin: PinData | null
+  /** 현지인/관광객 — 여기서 먼저 고르고 폼이 그에 맞춰 열린다 */
+  visitorType: VisitorType | null
+  onVisitorTypeChange: (v: VisitorType) => void
   onPinUpdate: (pin: PinData) => void
   onMapFlyTo: (lat: number, lng: number, zoom?: number) => void
   onConfirm: (pin?: PinData) => void
@@ -31,13 +41,14 @@ interface LocationPickerProps {
   desktop?: boolean
 }
 
-export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm, onCancel, desktop = false }: LocationPickerProps) {
+export default function LocationPicker({ pin, visitorType, onVisitorTypeChange, onPinUpdate, onMapFlyTo, onConfirm, onCancel, desktop = false }: LocationPickerProps) {
   const [query, setQuery]       = useState('')
   const [searching, setSearching] = useState(false)
   const [results, setResults]   = useState<SearchResult[]>([])
   const [error, setError]       = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
   const [siteUrl, setSiteUrl]   = useState('')  // QR용 현재 사이트 주소(모바일 접속)
+  const [typeNudge, setTypeNudge] = useState(false)  // 구분 미선택 상태로 진행하려 할 때 안내
 
   useEffect(() => { setSiteUrl(window.location.origin) }, [])
 
@@ -67,6 +78,7 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
   }
 
   const selectResult = (result: SearchResult) => {
+    if (!visitorType) { setTypeNudge(true); return }
     const pinData: PinData = { lat: result.lat, lng: result.lng, address: result.address, placeName: result.placeName }
     onPinUpdate(pinData)
     onMapFlyTo(result.lat, result.lng, 17)
@@ -111,6 +123,39 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
           어디에서의 낭만인가요?
         </p>
       )}
+
+      {/* ── 구분 선택: 현지인 / 관광객 ── */}
+      <div style={{ marginBottom: '18px' }}>
+        <p style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: typeNudge && !visitorType ? '#800020' : '#867F79', letterSpacing: '0.14em', textAlign: 'center', marginBottom: '10px' }}>
+          {typeNudge && !visitorType ? '먼저 어느 쪽인지 골라주세요' : '어느 쪽에서 오셨나요?'}
+        </p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {VISITOR_OPTIONS.map(({ value, emoji, sub }) => {
+            const on = visitorType === value
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { onVisitorTypeChange(value); setTypeNudge(false) }}
+                aria-pressed={on}
+                style={{
+                  flex: 1, padding: desktop ? '14px 10px' : '12px 8px',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${on ? '#800020' : (typeNudge && !visitorType ? '#E4C9C9' : '#EDE9E4')}`,
+                  background: on ? '#800020' : '#FFFFFF',
+                  color: on ? '#FAF8F5' : '#6B6560',
+                  cursor: 'pointer', transition: 'all 0.18s',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                }}
+              >
+                <span style={{ fontSize: desktop ? '20px' : '17px', lineHeight: 1 }}>{emoji}</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: desktop ? '15px' : '14px', fontWeight: 600, letterSpacing: '0.02em' }}>{value}</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: on ? 'rgba(250,248,245,0.78)' : '#B5B0AB', wordBreak: 'keep-all' }}>{sub}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       {/* 안내 문구 */}
       <p style={{
@@ -233,12 +278,12 @@ export default function LocationPicker({ pin, onPinUpdate, onMapFlyTo, onConfirm
           </button>
           <button
             type="button"
-            onClick={() => onConfirm()}
+            onClick={() => { if (!visitorType) { setTypeNudge(true); return } onConfirm() }}
             disabled={!pin}
             style={{
               flex: 2, padding: '13px 0',
-              background: pin ? '#111' : '#EDE9E4',
-              color: pin ? '#FAF8F5' : '#C0BEBB',
+              background: pin && visitorType ? '#111' : '#EDE9E4',
+              color: pin && visitorType ? '#FAF8F5' : '#C0BEBB',
               fontFamily: 'var(--font-sans)', fontSize: '12px',
               cursor: pin ? 'pointer' : 'default',
               letterSpacing: '0.04em',
