@@ -236,14 +236,15 @@ function FeedCard({ spot, onClick }: { spot: Spot; onClick: () => void }) {
     <button type="button" onClick={onClick}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ textAlign: 'left', background: '#FFFFFF', border: `1px solid ${hover ? '#E4D5D5' : '#EDEAE5'}`, borderRadius: '14px', padding: '18px 20px 20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', boxShadow: hover ? '0 10px 26px rgba(0,0,0,0.09)' : '0 2px 8px rgba(0,0,0,0.04)', transform: hover ? 'translateY(-3px)' : 'translateY(0)', transition: 'all 0.2s ease', minHeight: '176px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+      {/* 좁은 화면(모바일 2열)에서는 날짜가 아랫줄로 내려가고, 배지·카테고리는 절대 줄바꿈되지 않게 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px 6px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {spot.visitorType && <VisitorBadge type={spot.visitorType} />}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '10px', color, letterSpacing: '0.12em', fontWeight: 600 }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block' }} />{spot.category}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: FONT_UI, fontSize: '10px', color, letterSpacing: '0.12em', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />{spot.category}
           </span>
         </div>
-        <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', flexShrink: 0 }}>{formatDate(spot.createdAt)}</span>
+        <span style={{ fontFamily: FONT_UI, fontSize: '10px', color: '#C0BEBB', flexShrink: 0, whiteSpace: 'nowrap' }}>{formatDate(spot.createdAt)}</span>
       </div>
       <p style={{ fontFamily: FONT_BRAND, fontSize: '20px', color: '#2A2520', lineHeight: 1.3, wordBreak: 'keep-all', marginBottom: '4px' }}>{storyHeadline(spot)}</p>
       <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#8A8480', marginBottom: '10px', wordBreak: 'keep-all' }}>📍 {spot.placeName}</p>

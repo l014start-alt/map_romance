@@ -151,13 +151,25 @@ export default function App() {
       .then(r => r.json())
       .then((apiSpots: Spot[]) => {
         const knownIds = new Set([...dedupLocal, ...mockOnly].map(s => s.id))
+        // 같은 사연의 서버 사본 — 로컬 사본에 없는 값(구분·대구 한마디)을 여기서 채운다
+        const apiByContent = new Map(apiSpots.map(s => [contentKey(s), s]))
         const apiOnly = apiSpots.filter(s => {
           const k = contentKey(s)
           if (knownIds.has(s.id) || seen.has(k)) return false
           seen.add(k) // API 목록 내부의 중복도 방지
           return true
         })
-        setSpots(prev => [...prev, ...apiOnly])
+        setSpots(prev => [
+          // 구분이 생기기 전에 저장된 로컬 사본은 현지인/관광객 탭에서 빠져버리므로
+          // 서버가 가진 값으로 보강한다(사연 내용은 로컬 사본 그대로 둠).
+          ...prev.map(s => {
+            if (s.visitorType) return s
+            const server = apiByContent.get(contentKey(s))
+            if (!server?.visitorType) return s
+            return { ...s, visitorType: server.visitorType, daeguAnswer: s.daeguAnswer ?? server.daeguAnswer }
+          }),
+          ...apiOnly,
+        ])
       })
       .catch(() => {})
   }, [])
@@ -468,6 +480,43 @@ export default function App() {
       background: active ? '#800020' : 'transparent', color: active ? '#FAF8F5' : '#8A8480', fontWeight: active ? 500 : 400, transition: 'all 0.16s',
     })
     const dark = secondView === 'constellation'  // 별자리(우주) 모드일 때 헤더/배경도 어둡게
+
+    /* 입장 사진 '별' 아바타 — 클릭하면 오늘의 낭만 한 조각(글귀)이 열린다.
+       floating: 지도 위에 떠 있는 형태 / inline: 헤더 안에 들어가는 형태(사연 뷰에서 목록을 안 가림) */
+    const photoStar = (variant: 'floating' | 'inline') => {
+      if (!visitor?.photo) return null
+      const floating = variant === 'floating'
+      // 사연 뷰 모바일은 헤더가 좁아 사진+✨만 (문구는 생략)
+      const compact = !floating && !isDesktop
+      const w = floating ? (isDesktop ? '60px' : '50px') : (isDesktop ? '48px' : '38px')
+      const h = floating ? (isDesktop ? '42px' : '34px') : (isDesktop ? '34px' : '27px')
+      return (
+        <button onClick={() => setPhotoZoomOpen(true)} title="눌러서 오늘의 낭만 한 조각 열기" className="photo-star"
+          style={{ ['--star-glow' as string]: dark ? 'rgba(244,213,138,0.55)' : 'rgba(128,0,32,0.30)',
+            ...(floating
+              ? { position: 'absolute' as const, top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30 }
+              : { position: 'relative' as const, flexShrink: 0 }),
+            display: 'flex', alignItems: 'center', gap: compact ? '6px' : '9px',
+            padding: compact ? '4px 9px 4px 4px' : '5px 15px 5px 5px', borderRadius: '99px',
+            background: dark ? 'rgba(20,17,48,0.78)' : 'rgba(255,255,255,0.94)',
+            border: `1px solid ${dark ? 'rgba(244,213,138,0.6)' : '#EAD7B0'}`,
+            backdropFilter: 'blur(6px)', cursor: 'pointer' } as React.CSSProperties}>
+          {/* 사진(별 알맹이) — 금빛 링 */}
+          <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={visitor.photo} alt="" style={{ width: w, height: h, borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
+          </span>
+          {!compact && (
+            <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, alignItems: 'flex-start', gap: '1px' }}>
+              <span style={{ fontFamily: FONT_UI, fontSize: floating ? (isDesktop ? '17px' : '14px') : '14px', fontWeight: 700, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
+              <span style={{ fontFamily: FONT_UI, fontSize: floating ? (isDesktop ? '12px' : '11px') : '11px', fontWeight: 500, color: dark ? 'rgba(233,231,247,0.72)' : '#B08968', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>숨은 낭만젊음사랑 열기</span>
+            </span>
+          )}
+          <span className="photo-sparkle" style={{ fontSize: floating ? (isDesktop ? '19px' : '16px') : '15px', lineHeight: 1, flexShrink: 0 }}>✨</span>
+        </button>
+      )
+    }
+
     return (
       <div style={{ ...pageStyle, position: 'relative', background: dark ? '#0d0b1e' : '#FAF8F5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
@@ -483,6 +532,8 @@ export default function App() {
                 </button>
               )}
               <span style={{ fontFamily: FONT_BRAND, fontSize: isDesktop ? '26px' : '19px', color: dark ? '#F4D58A' : '#800020', lineHeight: 1 }}>낭만여지도</span>
+              {/* 사연 뷰에서는 별 아바타를 헤더 안에 — 목록 위에 떠서 탭을 가리지 않게 */}
+              {isRead && photoStar('inline')}
             </div>
             {/* 우 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isDesktop ? '14px' : '8px', flexShrink: 0 }}>
@@ -508,22 +559,9 @@ export default function App() {
             ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} onEdit={editStoryOnServer} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
 
-          {/* 입장 시 촬영한 사진 — 지도 위에 반짝이는 '별'처럼 (클릭 → 오늘의 낭만 열기) */}
-          {visitor?.photo && (
-            <button onClick={() => setPhotoZoomOpen(true)} title="눌러서 오늘의 낭만 한 조각 열기" className="photo-star"
-              style={{ ['--star-glow' as string]: dark ? 'rgba(244,213,138,0.55)' : 'rgba(128,0,32,0.30)', position: 'absolute', top: isDesktop ? '16px' : '12px', left: isDesktop ? '16px' : '12px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '9px', padding: '5px 15px 5px 5px', borderRadius: '99px', background: dark ? 'rgba(20,17,48,0.78)' : 'rgba(255,255,255,0.94)', border: `1px solid ${dark ? 'rgba(244,213,138,0.6)' : '#EAD7B0'}`, backdropFilter: 'blur(6px)', cursor: 'pointer' } as React.CSSProperties}>
-              {/* 사진(별 알맹이) — 금빛 링 */}
-              <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={visitor.photo} alt="" style={{ width: isDesktop ? '60px' : '50px', height: isDesktop ? '42px' : '34px', borderRadius: '9px', objectFit: 'cover', border: `1.5px solid ${dark ? '#F4D58A' : '#800020'}`, display: 'block' }} />
-              </span>
-              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, alignItems: 'flex-start', gap: '1px' }}>
-                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '17px' : '14px', fontWeight: 700, color: dark ? '#F4D58A' : '#800020', whiteSpace: 'nowrap' }}>{visitor.region}에서 오심</span>
-                <span style={{ fontFamily: FONT_UI, fontSize: isDesktop ? '12px' : '11px', fontWeight: 500, color: dark ? 'rgba(233,231,247,0.72)' : '#B08968', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>숨은 낭만젊음사랑 열기</span>
-              </span>
-              <span className="photo-sparkle" style={{ fontSize: isDesktop ? '19px' : '16px', lineHeight: 1, flexShrink: 0 }}>✨</span>
-            </button>
-          )}
+          {/* 입장 사진 별 아바타 — 지도 뷰에서만 지도 위에 띄운다.
+              (사연 뷰에서는 헤더 안에 들어가 목록/탭을 가리지 않음) */}
+          {!isRead && photoStar('floating')}
 
           {/* 사진 크게 보기 모달 */}
           {photoZoomOpen && visitor?.photo && (
