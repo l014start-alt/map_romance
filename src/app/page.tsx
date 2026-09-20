@@ -119,7 +119,12 @@ export default function App() {
     } catch { /* ignore */ }
   }, [])
 
-  /* ── 초기 로딩: mockData + localStorage + Supabase 병합 ── */
+  /* ── 초기 로딩: mockData + localStorage + Supabase 병합 ──
+        ⚠️ 로컬 사본(이 기기에서 작성한 사연)은 작성 직후 바로 보여주려고
+        localStorage에 저장해 두는데, 예전에는 승인 여부와 무관하게 항상 다시
+        띄웠다 → 관리자가 승인하지 않은 글이 그 기기(전시 키오스크 등)의
+        별자리 지도·사연 목록에 계속 남았다. 이제 새로고침 이후에는
+        '서버가 승인했다고 알려준 사연'만 통과시킨다. ── */
   useEffect(() => {
     let localSpots: Spot[] = []
     try {
@@ -134,44 +139,60 @@ export default function App() {
     } catch { /* ignore */ }
 
     // 로컬 자체 내용 중복 제거(이중 저장 방지) — 같은 사연이면 하나만
-    const seen = new Set<string>()
+    const localSeen = new Set<string>()
     const dedupLocal = localSpots.filter(s => {
-      const k = contentKey(s); if (seen.has(k)) return false; seen.add(k); return true
+      const k = contentKey(s); if (localSeen.has(k)) return false; localSeen.add(k); return true
     })
 
-    // mock 데이터 + localStorage 병합 (로컬이 항상 우선, 내용 중복은 제외)
-    const localIds = new Set(dedupLocal.map(s => s.id))
-    const mockOnly = MOCK_SPOTS.filter(s => !localIds.has(s.id) && !seen.has(contentKey(s)))
-    mockOnly.forEach(s => seen.add(contentKey(s)))
-    setSpots([...dedupLocal, ...mockOnly])
+    // apiSpots = 서버의 승인 목록(null이면 서버를 못 불러온 상태)
+    const merge = (apiSpots: Spot[] | null) => {
+      // 승인된 사연만 노출. 서버를 못 불러왔을 때만 예외적으로 로컬 사본을 그대로 둔다.
+      const approvedIds = apiSpots && new Set(apiSpots.map(s => s.id))
+      const approvedKeys = apiSpots && new Set(apiSpots.map(s => contentKey(s)))
+      const visibleLocal = approvedIds && approvedKeys
+        ? dedupLocal.filter(s => approvedIds.has(s.id) || approvedKeys.has(contentKey(s)))
+        : dedupLocal
+      // 미승인 사연은 localStorage에는 남겨 둔다(승인되면 다시 보이고, 비밀번호 수정도 가능).
 
-    // Supabase API 추가 — id가 새롭고 '내용도' 아직 없는 것만
-    // (서버 사본 spot-… 이 로컬 사본 local-… 과 내용 같으면 건너뜀 → 중복 표시 방지)
+      const seen = new Set(visibleLocal.map(contentKey))
+      const visibleIds = new Set(visibleLocal.map(s => s.id))
+
+      // mock 데이터 병합 (로컬이 항상 우선, 내용 중복은 제외)
+      const mockOnly = MOCK_SPOTS.filter(s => !visibleIds.has(s.id) && !seen.has(contentKey(s)))
+      mockOnly.forEach(s => seen.add(contentKey(s)))
+
+      // 서버 사본 추가 — id가 새롭고 '내용도' 아직 없는 것만
+      // (서버 사본 spot-… 이 로컬 사본 local-… 과 내용 같으면 건너뜀 → 중복 표시 방지)
+      const knownIds = new Set([...visibleLocal, ...mockOnly].map(s => s.id))
+      const apiByContent = new Map((apiSpots ?? []).map(s => [contentKey(s), s]))
+      const apiOnly = (apiSpots ?? []).filter(s => {
+        const k = contentKey(s)
+        if (knownIds.has(s.id) || seen.has(k)) return false
+        seen.add(k) // API 목록 내부의 중복도 방지
+        return true
+      })
+
+      setSpots([
+        // 구분이 생기기 전에 저장된 로컬 사본은 현지인/관광객 탭에서 빠져버리므로
+        // 서버가 가진 값으로 보강한다(사연 내용은 로컬 사본 그대로 둠).
+        ...visibleLocal.map(s => {
+          if (s.visitorType) return s
+          const server = apiByContent.get(contentKey(s))
+          if (!server?.visitorType) return s
+          return { ...s, visitorType: server.visitorType, daeguAnswer: s.daeguAnswer ?? server.daeguAnswer }
+        }),
+        ...mockOnly,
+        ...apiOnly,
+      ])
+    }
+
+    // 서버 응답 전에는 mock만 먼저 띄운다(미승인 로컬 사본이 잠깐이라도 보이지 않도록)
+    setSpots(MOCK_SPOTS)
+
     fetch('/api/spots?approved=true')
       .then(r => r.json())
-      .then((apiSpots: Spot[]) => {
-        const knownIds = new Set([...dedupLocal, ...mockOnly].map(s => s.id))
-        // 같은 사연의 서버 사본 — 로컬 사본에 없는 값(구분·대구 한마디)을 여기서 채운다
-        const apiByContent = new Map(apiSpots.map(s => [contentKey(s), s]))
-        const apiOnly = apiSpots.filter(s => {
-          const k = contentKey(s)
-          if (knownIds.has(s.id) || seen.has(k)) return false
-          seen.add(k) // API 목록 내부의 중복도 방지
-          return true
-        })
-        setSpots(prev => [
-          // 구분이 생기기 전에 저장된 로컬 사본은 현지인/관광객 탭에서 빠져버리므로
-          // 서버가 가진 값으로 보강한다(사연 내용은 로컬 사본 그대로 둠).
-          ...prev.map(s => {
-            if (s.visitorType) return s
-            const server = apiByContent.get(contentKey(s))
-            if (!server?.visitorType) return s
-            return { ...s, visitorType: server.visitorType, daeguAnswer: s.daeguAnswer ?? server.daeguAnswer }
-          }),
-          ...apiOnly,
-        ])
-      })
-      .catch(() => {})
+      .then((apiSpots: Spot[]) => merge(Array.isArray(apiSpots) ? apiSpots : null))
+      .catch(() => merge(null))
   }, [])
 
   /* ── 뷰 전환 ── */
@@ -292,7 +313,9 @@ export default function App() {
       nickname: data.nickname, sns: data.sns,
       visitorType: data.visitorType, daeguAnswer: data.daeguAnswer,
       imageUrl: data.imageUrl, password: data.password,
-      approved: true, createdAt: new Date().toISOString(),
+      // 관리자 승인 전 상태. 작성 직후 이번 세션 화면에는 보이지만,
+      // 새로고침 뒤에는 서버가 승인한 뒤에야 다시 보인다.
+      approved: false, createdAt: new Date().toISOString(),
     }
 
     const key = contentKey(newSpot)
