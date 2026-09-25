@@ -81,7 +81,7 @@ function buildGraph(spots: Spot[]): { nodes: Node[]; edges: { a: string; b: stri
 
 /* 노드들이 화면을 알맞게 채우도록 초기 줌/팬을 계산(빈 남부는 잘라내고 별무리를 가운데로).
    pad = 노드 bounding box 바깥에 남길 여백 비율(라벨 공간 확보용). */
-function fitTransform(nodes: Node[], pad = 0.46): Tf {
+function fitTransform(nodes: Node[], pad = 0.14): Tf {
   if (nodes.length === 0) return { k: 1, tx: 0, ty: 0 }
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   for (const n of nodes) {
