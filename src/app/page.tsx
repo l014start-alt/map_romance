@@ -12,7 +12,6 @@ import Footer from '@/components/Footer'
 import StoryFeed from '@/components/StoryFeed'             // 사연 피드(시간순 그리드 + 좌지도/우내용)
 import ConstellationMap from '@/components/ConstellationMap' // 별자리 지도(지도로 보기)
 import { Spot, Category, LocationGroup, VisitorType, storyHeadline } from '@/types'
-import { MOCK_SPOTS } from '@/lib/mockData'
 import { saveVisitorSelection, setCollectionExcluded } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
 import { randomQuote } from '@/lib/quotes' // 낭젊사 매거진 글귀(사진 크게보기 랜덤 표시)
 
@@ -157,13 +156,9 @@ export default function App() {
       const seen = new Set(visibleLocal.map(contentKey))
       const visibleIds = new Set(visibleLocal.map(s => s.id))
 
-      // mock 데이터 병합 (로컬이 항상 우선, 내용 중복은 제외)
-      const mockOnly = MOCK_SPOTS.filter(s => !visibleIds.has(s.id) && !seen.has(contentKey(s)))
-      mockOnly.forEach(s => seen.add(contentKey(s)))
-
       // 서버 사본 추가 — id가 새롭고 '내용도' 아직 없는 것만
       // (서버 사본 spot-… 이 로컬 사본 local-… 과 내용 같으면 건너뜀 → 중복 표시 방지)
-      const knownIds = new Set([...visibleLocal, ...mockOnly].map(s => s.id))
+      const knownIds = visibleIds
       const apiByContent = new Map((apiSpots ?? []).map(s => [contentKey(s), s]))
       const apiOnly = (apiSpots ?? []).filter(s => {
         const k = contentKey(s)
@@ -181,13 +176,12 @@ export default function App() {
           if (!server?.visitorType) return s
           return { ...s, visitorType: server.visitorType, daeguAnswer: s.daeguAnswer ?? server.daeguAnswer }
         }),
-        ...mockOnly,
         ...apiOnly,
       ])
     }
 
-    // 서버 응답 전에는 mock만 먼저 띄운다(미승인 로컬 사본이 잠깐이라도 보이지 않도록)
-    setSpots(MOCK_SPOTS)
+    // 서버 응답 전에는 비워 둔다(미승인 로컬 사본이 잠깐이라도 보이지 않도록). 예시(목업) 사연은 2026-09-28부로 노출 중단
+    setSpots([])
 
     fetch('/api/spots?approved=true')
       .then(r => r.json())
