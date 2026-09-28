@@ -116,6 +116,12 @@ body {
 @keyframes photo-sparkle { 0%, 100% { opacity: 0.55; transform: scale(0.8) rotate(0deg); } 50% { opacity: 1; transform: scale(1.2) rotate(20deg); } }
 .photo-sparkle { display: inline-block; animation: photo-sparkle 1.9s ease-in-out infinite; }
 
+/* 기록 창(모달)이 떠 있을 때 뒤의 별자리·사진 별 애니메이션 정지 — 매 프레임 다시 그리느라 글자 입력이 수백 ms 밀리던 문제(INP) */
+.bg-anim-paused .star-tw, .bg-anim-paused .const-ring, .bg-anim-paused .const-node,
+.bg-anim-paused .const-line, .bg-anim-paused .photo-star, .bg-anim-paused .photo-sparkle {
+  animation-play-state: paused !important;
+}
+
 /* ── 타자기 효과: 본문 뒤 깜빡이는 커서 ── */
 @keyframes tw-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .tw-cursor {

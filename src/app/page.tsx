@@ -576,8 +576,8 @@ export default function App() {
           {/* 카테고리 필터 제거 — 사연을 하나의 흐름으로 봄 */}
         </header>
 
-        {/* 본문 */}
-        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {/* 본문 — 기록 창이 열려 있는 동안엔 뒤 배경 애니메이션을 멈춰 입력이 버벅이지 않게 */}
+        <div className={phase !== 'idle' ? 'bg-anim-paused' : undefined} style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           {isRead
             ? <StoryFeed spots={readerSpots} startPlaceName={readerStart ?? undefined} desktop={isDesktop} onEdit={editStoryOnServer} />
             : <ConstellationMap embedded spots={filteredSpots} onOpenStories={openStories} />}
