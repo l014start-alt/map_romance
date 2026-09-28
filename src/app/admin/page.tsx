@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Spot, Category, VisitorType, DAEGU_QUESTION } from '@/types'
+import { Spot, Category, VisitorType, DAEGU_QUESTION, isNearDaegu, spotMatches } from '@/types'
 
 const FONT_UI = 'var(--font-sans)'
 const FONT_BRAND = 'var(--font-brand)'
@@ -479,6 +479,14 @@ function SpotCard({ spot, onApprove, onUnapprove, onDelete, onEdit }: SpotCardPr
             }}>
               {spot.approved ? '✓ 승인됨' : '검토 대기'}
             </span>
+            {!isNearDaegu(spot) && (
+              <span title="대구 밖 좌표라 별자리 지도에는 표시되지 않아요" style={{
+                fontFamily: FONT_UI, fontSize: '9px', fontWeight: 600, color: '#B0402B',
+                background: '#FFF1EC', border: '1px solid #B0402B33', borderRadius: '2px', padding: '2px 6px',
+              }}>
+                ⚠ 대구 밖 위치
+              </span>
+            )}
           </div>
           <span style={{ fontFamily: FONT_UI, fontSize: '8px', color: '#C8C4C0' }}>{date}</span>
         </div>
@@ -597,6 +605,7 @@ export default function AdminPage() {
   const [spots, setSpots] = useState<Spot[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<VisitorStats | null>(null)
+  const [query, setQuery] = useState('')
   const router = useRouter()
 
   const logout = async () => {
@@ -663,6 +672,7 @@ export default function AdminPage() {
 
   const pending = spots.filter((s) => !s.approved)
   const approved = spots.filter((s) => s.approved)
+  const shown = spots.filter((s) => spotMatches(s, query))
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: '#FAF8F5' }}>
@@ -737,6 +747,25 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* 검색 */}
+      <div style={{ position: 'sticky', top: '72px', zIndex: 9, padding: '12px 20px', background: '#FAF8F5', borderBottom: '1px solid #EDE9E4', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="장소·주소·사연·닉네임 검색"
+          aria-label="제보 검색"
+          style={{
+            flex: 1, minWidth: 0, boxSizing: 'border-box', padding: '10px 14px',
+            fontFamily: FONT_UI, fontSize: '16px', color: '#2A2520',
+            background: '#fff', border: '1px solid #EDE9E4', borderRadius: '6px', outline: 'none',
+          }}
+        />
+        {query.trim() && (
+          <span style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#8A8480', whiteSpace: 'nowrap' }}>{shown.length}건</span>
+        )}
+      </div>
+
       {/* 목록 */}
       <div style={{ padding: '0 0 40px' }}>
         {loading && (
@@ -749,7 +778,12 @@ export default function AdminPage() {
             접수된 제보가 없습니다.
           </p>
         )}
-        {!loading && spots.map((spot) => (
+        {!loading && spots.length > 0 && shown.length === 0 && (
+          <p style={{ fontFamily: FONT_UI, fontSize: '11px', color: '#C0BEBB', textAlign: 'center', padding: '40px 0' }}>
+            &apos;{query.trim()}&apos;에 해당하는 제보가 없습니다.
+          </p>
+        )}
+        {!loading && shown.map((spot) => (
           <SpotCard
             key={spot.id}
             spot={spot}

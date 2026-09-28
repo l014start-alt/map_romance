@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Spot, Category, DAEGU_QUESTION, storyHeadline } from '@/types'
+import { Spot, Category, DAEGU_QUESTION, storyHeadline, isNearDaegu } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
 import { DAEGU_MAP } from '@/lib/daeguMap'
 
@@ -43,7 +43,8 @@ type Tf = { k: number; tx: number; ty: number }
 function buildGraph(spots: Spot[]): { nodes: Node[]; edges: { a: string; b: string; key: string }[] } {
   const map = new Map<string, { placeName: string; lat: number; lng: number; cats: Set<Category>; count: number }>()
   for (const s of spots) {
-    if (s.lat == null || s.lng == null) continue
+    // 대구 밖 좌표(예: 다른 지역 장소)는 별자리에서 제외 — 그대로 두면 화면 밖에 찍히고 첫 화면 줌이 확 줄어듦
+    if (s.lat == null || s.lng == null || !isNearDaegu(s)) continue
     const key = s.placeName.trim()
     const g = map.get(key)
     if (g) { g.cats.add(s.category); g.count++ }

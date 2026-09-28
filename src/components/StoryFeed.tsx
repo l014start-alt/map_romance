@@ -6,7 +6,7 @@
    ══════════════════════════════════════════════════════════════ */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Spot, Category, VisitorType, DAEGU_QUESTION, storyHeadline } from '@/types'
+import { Spot, Category, VisitorType, DAEGU_QUESTION, storyHeadline, spotMatches } from '@/types'
 
 const FONT_BRAND = 'var(--font-brand)'
 const FONT_UI    = 'var(--font-sans)'
@@ -260,14 +260,16 @@ export default function StoryFeed({ spots, startPlaceName, desktop = false, onEd
   const [selected, setSelected] = useState<Spot | null>(null)
   const [bucket, setBucket] = useState<Bucket>('all')
   const [page, setPage] = useState(0)
+  const [query, setQuery] = useState('')
 
-  // 큰 분류(전체/현지인/관광객)로 먼저 거른다
-  const ordered = useMemo(() => bucket === 'all' ? all : all.filter(s => s.visitorType === bucket), [all, bucket])
+  // 검색어(장소·사연·닉네임 등) → 큰 분류(전체/현지인/관광객) 순으로 거른다
+  const searched = useMemo(() => query.trim() ? all.filter(s => spotMatches(s, query)) : all, [all, query])
+  const ordered = useMemo(() => bucket === 'all' ? searched : searched.filter(s => s.visitorType === bucket), [searched, bucket])
   const counts = useMemo(() => ({
-    all: all.length,
-    현지인: all.filter(s => s.visitorType === '현지인').length,
-    관광객: all.filter(s => s.visitorType === '관광객').length,
-  } as Record<Bucket, number>), [all])
+    all: searched.length,
+    현지인: searched.filter(s => s.visitorType === '현지인').length,
+    관광객: searched.filter(s => s.visitorType === '관광객').length,
+  } as Record<Bucket, number>), [searched])
 
   // 지도에서 특정 장소로 진입 시 그 장소의 최신 사연 상세로
   useEffect(() => {
@@ -293,8 +295,8 @@ export default function StoryFeed({ spots, startPlaceName, desktop = false, onEd
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#FAF8F5' }}>
-      {/* 큰 분류 탭 — 전체 / 현지인 / 관광객 */}
-      <div style={{ flexShrink: 0, display: 'flex', gap: '8px', padding: desktop ? '20px 40px 0' : '14px 16px 0' }}>
+      {/* 큰 분류 탭 — 전체 / 현지인 / 관광객 + 검색 */}
+      <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: desktop ? '20px 40px 0' : '14px 16px 0' }}>
         {BUCKETS.map(b => {
           const on = bucket === b
           const c = b === 'all' ? '#800020' : VT_COLOR[b]
@@ -306,13 +308,19 @@ export default function StoryFeed({ spots, startPlaceName, desktop = false, onEd
             </button>
           )
         })}
+        <div style={{ position: 'relative', flex: desktop ? '0 1 320px' : '1 1 100%', marginLeft: desktop ? 'auto' : 0 }}>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#B5B0AB" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="9" cy="9" r="6" /><path d="m14 14 4 4" /></svg>
+          <input type="search" value={query} onChange={e => { setQuery(e.target.value); setPage(0) }}
+            placeholder="장소·사연·닉네임 검색" aria-label="사연 검색"
+            style={{ width: '100%', boxSizing: 'border-box', fontFamily: FONT_UI, fontSize: '16px', color: '#2A2520', background: '#FFFFFF', border: '1.5px solid #EDE9E4', borderRadius: '99px', padding: desktop ? '9px 16px 9px 38px' : '8px 14px 8px 38px', outline: 'none' }} />
+        </div>
       </div>
 
       <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: desktop ? '20px 40px 28px' : '14px 16px 18px' }}>
         {ordered.length === 0 ? (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
             <p style={{ fontFamily: FONT_BRAND, fontSize: '24px', color: '#C0BEBB' }}>
-              {bucket === 'all' ? '아직 사연이 없어요' : `아직 ${bucket}의 사연이 없어요`}
+              {query.trim() ? `'${query.trim()}'에 해당하는 사연이 없어요` : bucket === 'all' ? '아직 사연이 없어요' : `아직 ${bucket}의 사연이 없어요`}
             </p>
           </div>
         ) : (

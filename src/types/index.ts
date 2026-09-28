@@ -39,6 +39,21 @@ export function storyHeadline(spot: Spot): string {
   return m.length > 26 ? `${m.slice(0, 26)}…` : m
 }
 
+/** 대구(+군위·경산 등 맞닿은 곳) 범위 안의 좌표인지 — 별자리 지도는 이 안쪽만 그린다 */
+export function isNearDaegu(spot: Pick<Spot, 'lat' | 'lng'>): boolean {
+  if (spot.lat == null || spot.lng == null) return false
+  return spot.lat > 35.55 && spot.lat < 36.35 && spot.lng > 128.3 && spot.lng < 128.95
+}
+
+/** 검색어가 장소명·주소·대구 한마디·사연·닉네임 중 어디에든 들어있는지(띄어쓰기·대소문자 무시) */
+export function spotMatches(spot: Spot, query: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '')
+  const q = norm(query)
+  if (!q) return true
+  return [spot.placeName, spot.address, spot.daeguAnswer, spot.title, spot.moment, spot.nickname]
+    .some(f => f != null && norm(f).includes(q))
+}
+
 // 같은 장소(placeName 기준)에 쌓인 사연 묶음
 export interface LocationGroup {
   key: string
