@@ -129,7 +129,7 @@ export default function RecordModal({ pin, visitorType, onVisitorTypeChange, des
 
   /* ── 완료 화면 ── */
   if (done) return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: desktop ? 'center' : 'flex-end', justifyContent: 'center', padding: desktop ? '40px' : 0, background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(4px)' }}
+    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: desktop ? 'center' : 'flex-end', justifyContent: 'center', padding: desktop ? '40px' : 0, background: 'rgba(0,0,0,0.55)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ width: desktop ? '480px' : '100%', maxWidth: '100%', background: '#FAF8F5', borderRadius: desktop ? '14px' : '14px 14px 0 0', minHeight: desktop ? 'auto' : '40dvh', boxShadow: desktop ? '0 16px 56px rgba(0,0,0,0.22)' : 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
         <p style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#2A2520', lineHeight: 2.0, textAlign: 'center', wordBreak: 'keep-all' }}>기록이 접수되었습니다.</p>
@@ -143,7 +143,7 @@ export default function RecordModal({ pin, visitorType, onVisitorTypeChange, des
 
   /* ── 메인 폼 ── */
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: desktop ? 'center' : 'flex-end', justifyContent: 'center', padding: desktop ? '40px' : 0, background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(4px)' }}
+    <div style={{ position: 'absolute', inset: 0, zIndex: 9999, display: 'flex', alignItems: desktop ? 'center' : 'flex-end', justifyContent: 'center', padding: desktop ? '40px' : 0, background: 'rgba(0,0,0,0.55)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ width: desktop ? '480px' : '100%', maxWidth: '100%', maxHeight: desktop ? '86dvh' : '90dvh', overflowY: 'auto', background: '#FAF8F5', borderRadius: desktop ? '14px' : '14px 14px 0 0', boxShadow: desktop ? '0 16px 56px rgba(0,0,0,0.22)' : 'none', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
 

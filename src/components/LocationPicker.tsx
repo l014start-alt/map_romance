@@ -331,7 +331,7 @@ export default function LocationPicker({ pin, visitorType, onVisitorTypeChange, 
   if (desktop) {
     return (
       <div
-        style={{ position: 'absolute', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(2px)' }}
+        style={{ position: 'absolute', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.42)' }}
         onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
       >
         {card}
