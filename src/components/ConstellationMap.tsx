@@ -8,7 +8,10 @@
    · 휠/드래그/버튼으로 확대·축소·이동. 노드 클릭 → 상세 패널.
    ══════════════════════════════════════════════════════════════ */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+/* 줌/팬 트랜스폼은 일부러 ref로 렌더에 읽어 씀(프레임마다 React 재렌더 없이 DOM만 갱신 — 성능용) */
+/* eslint-disable react-hooks/refs */
+
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Spot, Category, DAEGU_QUESTION, storyHeadline, isNearDaegu } from '@/types'
 import { MOCK_SPOTS } from '@/lib/mockData'
@@ -100,15 +103,20 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover]       = useState<string | null>(null)
   const [openStory, setOpenStory] = useState<string | null>(null)  // 드로어에서 펼쳐 읽는 사연
-  // 초기 줌/팬 = 별무리에 맞춘 fit 뷰(MOCK_SPOTS 기준, 첫 렌더부터 프레이밍)
-  const [tf, setTf]             = useState<Tf>(() => fitTransform(buildGraph(MOCK_SPOTS).nodes))
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)  // 드래그 직후 발생하는 click 무시
   const touchPan = useRef<{ sx: number; sy: number; tx: number; ty: number; moved: boolean } | null>(null)
   const touchPinch = useRef<{ dist: number; mx: number; my: number } | null>(null)
-  const tfRef = useRef(tf)  // 최신 트랜스폼(네이티브 터치 핸들러에서 참조)
-  tfRef.current = tf
+  /* 줌/팬 트랜스폼은 React state가 아니라 ref에 두고 DOM 속성만 직접 갱신(프레임당 1회).
+     장소가 수백 곳이라 움직일 때마다 전체를 다시 렌더하면 크게 버벅임.
+     초기값 = 별무리에 맞춘 fit 뷰(MOCK_SPOTS 기준, 첫 렌더부터 프레이밍) */
+  const tfRef = useRef<Tf | null>(null)
+  if (tfRef.current === null) tfRef.current = fitTransform(buildGraph(MOCK_SPOTS).nodes)
+  const zoomGRef = useRef<SVGGElement>(null)
+  const nodeEls = useRef(new Map<string, SVGGElement>())
+  const nodesRef = useRef<Node[]>([])
+  const rafId = useRef(0)
 
   useEffect(() => {
     if (spotsProp) return  // 외부(앱)에서 spots를 주면 자체 로딩 생략(승인된 제보 포함 목록 사용)
@@ -124,25 +132,22 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
   const spots = spotsProp ?? loadedSpots
   const { nodes, edges } = useMemo(() => buildGraph(spots), [spots])
   const fitTf = useMemo(() => fitTransform(nodes), [nodes])
+  useLayoutEffect(() => { nodesRef.current = nodes }, [nodes])
 
-  /* 별먼지 — 화면을 넉넉히 덮도록, 크기·밝기·반짝임 다양하게 */
-  const stars = useMemo(() => {
-    const rnd = mulberry32(20260811)
-    const arr: { x: number; y: number; r: number; o: number; tw: boolean; dur: string; d: string }[] = []
-    for (let i = 0; i < 280; i++) {
-      const big = rnd() < 0.05
-      arr.push({
-        x: -700 + rnd() * 2400,
-        y: -400 + rnd() * 1800,
-        r: big ? 1.6 + rnd() * 1.3 : 0.4 + rnd() * 1.1,
-        o: 0.1 + rnd() * 0.7,
-        tw: rnd() < 0.4,
-        dur: (2.4 + rnd() * 3.6).toFixed(2),
-        d: (rnd() * 4).toFixed(2),
-      })
+  /* 현재 트랜스폼을 DOM에 반영: 지도·성좌선 그룹은 scale, 별(노드)은 화면 좌표로 translate만 */
+  const applyTf = useCallback(() => {
+    rafId.current = 0
+    const t = tfRef.current!
+    zoomGRef.current?.setAttribute('transform', `translate(${t.tx} ${t.ty}) scale(${t.k})`)
+    for (const n of nodesRef.current) {
+      nodeEls.current.get(n.key)?.setAttribute('transform', `translate(${t.tx + t.k * n.x} ${t.ty + t.k * n.y})`)
     }
-    return arr
   }, [])
+  const setTf = useCallback((next: Tf | ((cur: Tf) => Tf)) => {
+    tfRef.current = typeof next === 'function' ? next(tfRef.current!) : next
+    if (!rafId.current) rafId.current = requestAnimationFrame(applyTf)
+  }, [applyTf])
+  useEffect(() => () => cancelAnimationFrame(rafId.current), [])
 
   /* 라벨 위치 오프셋(점 기준) — 겹치지 않게 상/하/좌/우 후보 중 선택 */
   const labelLayout = useMemo(() => {
@@ -223,7 +228,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
         touchPinch.current = { dist: d2(a, b), mx: (a.clientX + b.clientX) / 2, my: (a.clientY + b.clientY) / 2 }
       } else if (e.touches.length === 1) {
         const t = e.touches[0]
-        touchPan.current = { sx: t.clientX, sy: t.clientY, tx: tfRef.current.tx, ty: tfRef.current.ty, moved: false }
+        touchPan.current = { sx: t.clientX, sy: t.clientY, tx: tfRef.current!.tx, ty: tfRef.current!.ty, moved: false }
         touchPinch.current = null
       }
     }
@@ -256,7 +261,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
       else if (e.touches.length === 1) {                   // 두 손가락→한 손가락: 팬 재개
         touchPinch.current = null
         const t = e.touches[0]
-        touchPan.current = { sx: t.clientX, sy: t.clientY, tx: tfRef.current.tx, ty: tfRef.current.ty, moved: true }
+        touchPan.current = { sx: t.clientX, sy: t.clientY, tx: tfRef.current!.tx, ty: tfRef.current!.ty, moved: true }
       } else {
         const a = e.touches[0], b = e.touches[1]
         touchPinch.current = { dist: d2(a, b), mx: (a.clientX + b.clientX) / 2, my: (a.clientY + b.clientY) / 2 }
@@ -278,7 +283,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
   // 포인터 캡처는 쓰지 않음(캡처하면 click 타깃이 노드가 아니라 SVG로 잡혀 선택이 안 됨)
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return
-    drag.current = { sx: e.clientX, sy: e.clientY, tx: tf.tx, ty: tf.ty, moved: false }
+    drag.current = { sx: e.clientX, sy: e.clientY, tx: tfRef.current!.tx, ty: tfRef.current!.ty, moved: false }
   }
   const onPointerMove = (e: React.PointerEvent) => {
     if (e.pointerType !== 'mouse') return
@@ -299,12 +304,16 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
   const zoomBtn = (mult: number) => zoomAt(500, 500, mult)
   const reset = () => setTf(fitTf)   // 처음 위치 = 별무리 fit 뷰
   // 노드 더블클릭 → 그 장소를 화면 중앙으로 확대(겹친 장소 분리에 유용)
-  const focusNode = (n: Node) => setTf(cur => {
+  const focusNode = useCallback((n: Node) => setTf(cur => {
     const nk = Math.min(MAX_K, Math.max(cur.k * 2, 4))
     return { k: nk, tx: 500 - nk * n.x, ty: 500 - nk * n.y }
-  })
+  }), [setTf])
+  const onNodeClick = useCallback((key: string) => {
+    if (suppressClick.current) { suppressClick.current = false; return }
+    setSelected(prev => prev === key ? null : key)
+  }, [])
 
-  const inv = 1 / tf.k  // 마커·라벨을 화면상 일정 크기로 유지(역보정)
+  const t = tfRef.current!
 
   return (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column',
@@ -333,89 +342,56 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
 
       {/* 밤하늘 SVG */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {/* 별먼지 — 고정 배경(줌 영향 없음). 반짝임이 지도까지 매 프레임 다시 그리지 않도록 별도 레이어로 분리 */}
+        <StarDust />
+
         <svg ref={svgRef} viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid meet"
-             style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
+             style={{ position: 'relative', width: '100%', height: '100%', display: 'block', cursor: 'grab', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', willChange: 'transform' }}
              onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onPointerLeave={onPointerUp}
              onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(null) }}>
           <defs>
-            <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-            </radialGradient>
             <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#FFF4D8" stopOpacity="0.85" />
               <stop offset="100%" stopColor="#FFF4D8" stopOpacity="0" />
             </radialGradient>
           </defs>
 
-          {/* 별먼지 — 고정 배경(줌 영향 없음) */}
-          <g>
-            {stars.map((s, i) => (
-              <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={s.o}
-                className={s.tw ? 'star-tw' : undefined}
-                style={s.tw ? { animationDuration: `${s.dur}s`, animationDelay: `${s.d}s` } : undefined} />
-            ))}
-          </g>
-
-          {/* 줌/팬 대상: 대구 지도 + 성좌선 + 별(노드) */}
-          <g transform={`translate(${tf.tx} ${tf.ty}) scale(${tf.k})`}>
+          {/* 줌/팬 대상: 대구 지도 + 성좌선 (선 굵기는 non-scaling) */}
+          <g ref={zoomGRef} transform={`translate(${t.tx} ${t.ty}) scale(${t.k})`}>
             {/* 대구 자치구 경계 — 얇고 은은하게 */}
-            <g fill="none" strokeLinejoin="round" vectorEffect="non-scaling-stroke">
+            <g fill="none" strokeLinejoin="round">
               {DAEGU_MAP.paths.map((d, i) => <path key={`m${i}`} d={d} stroke="rgba(150,168,220,0.16)" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
             </g>
 
-            {/* 성좌선 */}
-            {edges.map((e, i) => {
+            {/* 성좌선 — 등장 효과는 선마다가 아니라 묶음 전체에 한 번(수백 개 개별 애니메이션은 스타일 계산이 무거움) */}
+            <g className="const-layer-in" style={{ animationDelay: '0.35s' }}>
+            {edges.map(e => {
               const a = nodeByKey.get(e.a)!, b = nodeByKey.get(e.b)!
               const isOn = active != null && (e.a === active || e.b === active)
               return (
-                <line key={e.key} className="const-line" x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                <line key={e.key} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
                   stroke={isOn ? '#F4D58A' : 'rgba(200,208,240,0.34)'} strokeWidth={isOn ? 1.6 : 1}
                   strokeOpacity={active == null ? 1 : isOn ? 1 : 0.18} vectorEffect="non-scaling-stroke"
-                  style={{ animationDelay: `${i * 0.06}s`, transition: 'stroke 0.2s, stroke-opacity 0.2s' }} />
+                  style={{ transition: 'stroke 0.2s, stroke-opacity 0.2s' }} />
               )
             })}
+            </g>
+          </g>
 
-            {/* 별(노드) — 화면상 일정 크기로(inv 역보정). 사연이 많을수록 크고 밝게 + 둘레 링. */}
-            {nodes.map((n, i) => {
-              const isActive = active === n.key
-              const isConn = connectedKeys.has(n.key)
-              const dim = active != null && !isActive && !isConn
-              const lab = labelLayout.get(n.key) ?? { dx: 0, dy: -20, anchor: 'middle' as const }
-              // 사연 수(count) → 크기·밝기 스케일(sqrt로 완만하게, 상한선 둠)
-              const grow    = Math.sqrt(n.count) - 1               // 1개=0, 3개≈0.73, 9개=2
-              const sizeMul = 1 + Math.min(0.95, grow * 0.5)        // 1 ~ 1.95
-              const glowMul = 1 + Math.min(1.1, grow * 0.6)         // 후광 크기
-              const bright  = Math.min(0.95, 0.5 + (n.count - 1) * 0.12) // 후광 밝기
-              // 사연이 겹겹이 쌓인 곳: 둘레 동심원(2개↑부터, 최대 3겹)
-              const rings   = Math.min(3, Math.max(0, n.count - 1))
-              const coreR   = (isActive ? 3.4 : 2.6) * sizeMul
-              return (
-                <g key={n.key} className="const-node" style={{ animationDelay: `${0.3 + i * 0.05}s`, cursor: 'pointer', opacity: dim ? 0.4 : 1, transition: 'opacity 0.2s' }}
-                   onClick={(ev) => { ev.stopPropagation(); if (suppressClick.current) { suppressClick.current = false; return } setSelected(prev => prev === n.key ? null : n.key) }}
-                   onDoubleClick={(ev) => { ev.stopPropagation(); focusNode(n) }}
-                   onMouseEnter={() => setHover(n.key)} onMouseLeave={() => setHover(null)}>
-                  {/* 넓은 투명 클릭 영역(화면상 ~20px 고정) — 작아도 누르기 쉽게 */}
-                  <circle cx={n.x} cy={n.y} r={20 * inv} fill="transparent" />
-                  {/* 사연 수만큼 둘레에 도는 옅은 링(겹겹이 쌓인 이야기) */}
-                  {Array.from({ length: rings }).map((_, ri) => (
-                    <circle key={ri} className={dim ? undefined : 'const-ring'}
-                      cx={n.x} cy={n.y} r={(coreR + 5 + ri * 4.5) * inv}
-                      fill="none" stroke="#FFF2CE" strokeWidth={0.7 * inv}
-                      opacity={dim ? 0.08 : undefined}
-                      style={{ pointerEvents: 'none', animationDelay: `${ri * 0.5}s` }} />
-                  ))}
-                  <circle cx={n.x} cy={n.y} r={(isActive ? 30 : 20) * glowMul * inv} fill="url(#nodeGlow)" opacity={isActive ? 1 : bright} style={{ pointerEvents: 'none' }} />
-                  <circle cx={n.x} cy={n.y} r={coreR * inv} fill="#FFF6DC" />
-                  <circle cx={n.x} cy={n.y} r={(isActive ? 1.7 : 1.3) * sizeMul * inv} fill="#FFFFFF" />
-                  <text x={n.x + lab.dx * inv} y={n.y + lab.dy * inv} textAnchor={lab.anchor}
-                        fontFamily="var(--font-sans)" fontSize={(isActive ? 23 : 20) * inv} letterSpacing={0.2 * inv}
-                        fill={isActive ? '#FFF7E6' : dim ? '#7a7d9c' : 'rgba(220,226,246,0.95)'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 500, paintOrder: 'stroke', stroke: 'rgba(6,7,14,0.55)', strokeWidth: 3 * inv }}>
-                    {n.placeName}
-                  </text>
-                </g>
-              )
-            })}
+          {/* 별(노드) — 화면 좌표로 translate만 하고, 크기는 고정(줌해도 다시 그리지 않음) */}
+          <g className="const-layer-in">
+          {nodes.map(n => {
+            const isActive = active === n.key
+            const isConn = connectedKeys.has(n.key)
+            const dim = active != null && !isActive && !isConn
+            return (
+              <g key={n.key} transform={`translate(${t.tx + t.k * n.x} ${t.ty + t.k * n.y})`}
+                 ref={el => { if (el) nodeEls.current.set(n.key, el); else nodeEls.current.delete(n.key) }}>
+                <StarNode n={n} lab={labelLayout.get(n.key)} isActive={isActive} dim={dim}
+                  onClick={onNodeClick} onFocus={focusNode} onHover={setHover} />
+              </g>
+            )
+          })}
           </g>
         </svg>
 
@@ -434,7 +410,7 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         return (
           <aside style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 'min(400px, 92%)', zIndex: 12,
-            background: 'rgba(9,10,20,0.94)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+            background: 'rgba(9,10,20,0.97)',
             borderLeft: '1px solid rgba(255,255,255,0.09)', display: 'flex', flexDirection: 'column',
             animation: 'drawer-in 0.28s ease-out', boxShadow: '-18px 0 44px rgba(0,0,0,0.45)' }}>
 
@@ -485,6 +461,80 @@ export default function ConstellationMap({ embedded = false, onOpenStories, spot
     </div>
   )
 }
+
+/* 별먼지 — 화면을 넉넉히 덮도록, 크기·밝기·반짝임 다양하게 (모듈 로드 시 1회 생성, 시드 고정) */
+const STARS = (() => {
+  const rnd = mulberry32(20260811)
+  const arr: { x: number; y: number; r: number; o: number; tw: boolean; dur: string; d: string }[] = []
+  for (let i = 0; i < 280; i++) {
+    const big = rnd() < 0.05
+    arr.push({
+      x: -700 + rnd() * 2400,
+      y: -400 + rnd() * 1800,
+      r: big ? 1.6 + rnd() * 1.3 : 0.4 + rnd() * 1.1,
+      o: 0.1 + rnd() * 0.7,
+      tw: rnd() < 0.4,
+      dur: (2.4 + rnd() * 3.6).toFixed(2),
+      d: (rnd() * 4).toFixed(2),
+    })
+  }
+  return arr
+})()
+
+/* 별먼지 배경 레이어 — 지도 SVG와 같은 좌표계로 겹쳐 두되 별도 합성 레이어(반짝임 리페인트 격리) */
+const StarDust = memo(function StarDust() {
+  return (
+    <svg viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid meet" aria-hidden
+         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', willChange: 'transform' }}>
+      {STARS.map((s, i) => (
+        <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={s.o}
+          className={s.tw ? 'star-tw' : undefined}
+          style={s.tw ? { animationDuration: `${s.dur}s`, animationDelay: `${s.d}s` } : undefined} />
+      ))}
+    </svg>
+  )
+})
+
+/* 별(노드) 하나 — (0,0) 기준, 화면상 고정 크기. 사연이 많을수록 크고 밝게 + 둘레 링.
+   memo: 줌/팬은 부모 <g>의 translate만 바뀌므로 여기는 선택/호버가 바뀔 때만 다시 그림 */
+type LabelPos = { dx: number; dy: number; anchor: 'middle' | 'start' | 'end' }
+const StarNode = memo(function StarNode({ n, lab = { dx: 0, dy: -20, anchor: 'middle' }, isActive, dim, onClick, onFocus, onHover }: {
+  n: Node; lab?: LabelPos; isActive: boolean; dim: boolean
+  onClick: (key: string) => void; onFocus: (n: Node) => void; onHover: (key: string | null) => void
+}) {
+  // 사연 수(count) → 크기·밝기 스케일(sqrt로 완만하게, 상한선 둠)
+  const grow    = Math.sqrt(n.count) - 1               // 1개=0, 3개≈0.73, 9개=2
+  const sizeMul = 1 + Math.min(0.95, grow * 0.5)        // 1 ~ 1.95
+  const glowMul = 1 + Math.min(1.1, grow * 0.6)         // 후광 크기
+  const bright  = Math.min(0.95, 0.5 + (n.count - 1) * 0.12) // 후광 밝기
+  // 사연이 겹겹이 쌓인 곳: 둘레 동심원(2개↑부터, 최대 3겹). 맥동은 선택된 별만(수백 개가 늘 움직이면 무거움)
+  const rings   = Math.min(3, Math.max(0, n.count - 1))
+  const coreR   = (isActive ? 3.4 : 2.6) * sizeMul
+  return (
+    <g style={{ cursor: 'pointer', opacity: dim ? 0.4 : 1, transition: 'opacity 0.2s' }}
+       onClick={(ev) => { ev.stopPropagation(); onClick(n.key) }}
+       onDoubleClick={(ev) => { ev.stopPropagation(); onFocus(n) }}
+       onMouseEnter={() => onHover(n.key)} onMouseLeave={() => onHover(null)}>
+      {/* 사연 수만큼 둘레의 옅은 링(겹겹이 쌓인 이야기) */}
+      {Array.from({ length: rings }).map((_, ri) => (
+        <circle key={ri} className={isActive ? 'const-ring' : undefined}
+          r={coreR + 5 + ri * 4.5}
+          fill="none" stroke="#FFF2CE" strokeWidth={0.7}
+          opacity={dim ? 0.08 : isActive ? undefined : 0.26}
+          style={{ pointerEvents: 'none', animationDelay: `${ri * 0.5}s` }} />
+      ))}
+      {/* 후광 — 반지름 20↑라 넓은 클릭 영역도 겸함(작아도 누르기 쉽게) */}
+      <circle r={(isActive ? 30 : 20) * glowMul} fill="url(#nodeGlow)" opacity={isActive ? 1 : bright} />
+      <circle r={coreR} fill="#FFF6DC" />
+      <circle r={(isActive ? 1.7 : 1.3) * sizeMul} fill="#FFFFFF" />
+      <text x={lab.dx} y={lab.dy} textAnchor={lab.anchor}
+            fontFamily="var(--font-sans)" fontSize={isActive ? 23 : 20} letterSpacing={0.2}
+            fill={isActive ? '#FFF7E6' : dim ? '#7a7d9c' : 'rgba(220,226,246,0.95)'} style={{ pointerEvents: 'none', fontWeight: isActive ? 600 : 500, paintOrder: 'stroke', stroke: 'rgba(6,7,14,0.55)', strokeWidth: 3 }}>
+        {n.placeName}
+      </text>
+    </g>
+  )
+})
 
 /* 우측 드로어용 사연 카드 (다크) */
 function formatDate(iso: string) {
@@ -559,7 +609,7 @@ function StoryCardDark({ spot, expanded, single, onToggle }: { spot: Spot; expan
 function ZoomBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick} aria-label={label} title={label}
-      style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(235,238,250,0.85)' }}>
+      style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(235,238,250,0.85)' }}>
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
     </button>
   )

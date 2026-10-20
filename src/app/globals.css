@@ -93,6 +93,9 @@ body {
   50%      { opacity: 0.42; }
 }
 .const-ring { animation: const-ring 3.6s ease-in-out infinite; }
+/* 별·성좌선 묶음 전체가 한 번에 떠오르는 등장 효과(요소별 애니메이션 대신 — 장소가 수백 곳이라 가볍게) */
+@keyframes const-layer-in { from { opacity: 0; } to { opacity: 1; } }
+.const-layer-in { animation: const-layer-in 0.7s ease-out both; }
 
 /* ── 우측 사연 드로어 슬라이드-인 ── */
 @keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -118,7 +121,7 @@ body {
 
 /* 기록 창(모달)이 떠 있을 때 뒤의 별자리·사진 별 애니메이션 정지 — 매 프레임 다시 그리느라 글자 입력이 수백 ms 밀리던 문제(INP) */
 .bg-anim-paused .star-tw, .bg-anim-paused .const-ring, .bg-anim-paused .const-node,
-.bg-anim-paused .const-line, .bg-anim-paused .photo-star, .bg-anim-paused .photo-sparkle {
+.bg-anim-paused .const-line, .bg-anim-paused .const-layer-in, .bg-anim-paused .photo-star, .bg-anim-paused .photo-sparkle {
   animation-play-state: paused !important;
 }
 
