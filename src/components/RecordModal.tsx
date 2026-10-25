@@ -122,8 +122,9 @@ export default function RecordModal({ pin, visitorType, onVisitorTypeChange, des
         password: password || undefined,
       })
       setDone(true)
-    } catch {
+    } catch (err) {
       setSubmitting(false)
+      alert(err instanceof Error ? err.message : '접수하지 못했어요. 다시 시도해 주세요.')
     }
   }
 

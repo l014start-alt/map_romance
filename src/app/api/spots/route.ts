@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Category, VisitorType, isNearDaegu } from '@/types'
 import { getSupabase, rowToSpot } from '@/lib/supabase'
 import { notifyNewSpot } from '@/lib/notify'
+import { isAdminRequest } from '@/lib/adminAuth'
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
 const VISITOR_TYPES: VisitorType[] = ['현지인', '관광객']
 
 export async function GET(req: NextRequest) {
-  const approvedOnly = req.nextUrl.searchParams.get('approved') === 'true'
+  // 미승인 글은 관리자만 볼 수 있다 — 관리자가 아니면 ?approved 값과 무관하게 승인된 글만
+  const approvedOnly = req.nextUrl.searchParams.get('approved') === 'true' || !isAdminRequest(req)
   const sb = getSupabase()
 
   let query = sb.from('spots').select('*').order('created_at', { ascending: false })

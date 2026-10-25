@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSupabase, rowToSpot } from '@/lib/supabase'
+import { isAdminRequest } from '@/lib/adminAuth'
 import { Category, VisitorType } from '@/types'
 
 const CATEGORIES: Category[] = ['낭만', '젊음', '사랑']
@@ -12,13 +13,14 @@ export async function PUT(
   const { id } = await params
   const body = await req.json()
   const sb = getAdminSupabase()
-  const isAdmin = req.cookies.get('admin_session')?.value === process.env.ADMIN_PASSWORD?.trim()
+  const isAdmin = isAdminRequest(req)
 
   // 내용 수정 필드가 하나라도 있으면 '수정' 처리, 아니면 승인 토글
   const hasContent = ['title', 'moment', 'category', 'placeName', 'sns', 'visitorType', 'daeguAnswer'].some(k => body[k] !== undefined)
 
   if (!hasContent) {
-    // ── 승인 토글 (관리자) ──
+    // ── 승인 토글 (관리자만 — 예전엔 확인이 없어 누구나 승인할 수 있었다) ──
+    if (!isAdmin) return NextResponse.json({ error: '관리자만 승인할 수 있습니다.' }, { status: 401 })
     if (typeof body.approved !== 'boolean') {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
@@ -73,10 +75,11 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  if (!isAdminRequest(req)) return NextResponse.json({ error: '관리자만 삭제할 수 있습니다.' }, { status: 401 })
 
   const { error } = await getAdminSupabase().from('spots').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

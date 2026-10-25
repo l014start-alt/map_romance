@@ -633,26 +633,28 @@ export default function AdminPage() {
 
   useEffect(() => { void load() }, [load])
 
-  const approve = async (id: string) => {
-    await fetch(`/api/spots/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved: true }),
-    })
-    setSpots((prev) => prev.map((s) => s.id === id ? { ...s, approved: true } : s))
+  // 서버 반영이 실패하면 화면만 바뀌어 실제 상태와 어긋나므로, 성공했을 때만 갱신한다
+  const failed = async (res: Response) => {
+    if (res.status === 401) { alert('로그인이 만료됐어요. 다시 로그인해 주세요.'); router.push('/admin/login'); return true }
+    if (!res.ok) { alert('저장하지 못했어요. 새로고침 후 다시 시도해 주세요.'); return true }
+    return false
   }
 
-  const unapprove = async (id: string) => {
-    await fetch(`/api/spots/${id}`, {
+  const setApproved = async (id: string, value: boolean) => {
+    const res = await fetch(`/api/spots/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved: false }),
+      body: JSON.stringify({ approved: value }),
     })
-    setSpots((prev) => prev.map((s) => s.id === id ? { ...s, approved: false } : s))
+    if (await failed(res)) return
+    setSpots((prev) => prev.map((s) => s.id === id ? { ...s, approved: value } : s))
   }
+  const approve = (id: string) => setApproved(id, true)
+  const unapprove = (id: string) => setApproved(id, false)
 
   const remove = async (id: string) => {
-    await fetch(`/api/spots/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/spots/${id}`, { method: 'DELETE' })
+    if (await failed(res)) return
     setSpots((prev) => prev.filter((s) => s.id !== id))
   }
 

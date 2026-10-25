@@ -123,8 +123,10 @@ export default function App() {
         localStorage에 저장해 두는데, 예전에는 승인 여부와 무관하게 항상 다시
         띄웠다 → 관리자가 승인하지 않은 글이 그 기기(전시 키오스크 등)의
         별자리 지도·사연 목록에 계속 남았다. 이제 새로고침 이후에는
-        '서버가 승인했다고 알려준 사연'만 통과시킨다. ── */
-  useEffect(() => {
+        '서버가 승인했다고 알려준 사연'만 통과시킨다.
+        키오스크는 새로고침 없이 계속 켜 두므로, 지도에 들어갈 때마다(goSecond) 다시 불러와
+        관리자의 승인·승인취소·삭제가 바로 반영되게 한다. ── */
+  const loadSpots = useCallback(() => {
     let localSpots: Spot[] = []
     try {
       const raw = localStorage.getItem(LS_KEY)
@@ -143,14 +145,12 @@ export default function App() {
       const k = contentKey(s); if (localSeen.has(k)) return false; localSeen.add(k); return true
     })
 
-    // apiSpots = 서버의 승인 목록(null이면 서버를 못 불러온 상태)
-    const merge = (apiSpots: Spot[] | null) => {
-      // 승인된 사연만 노출. 서버를 못 불러왔을 때만 예외적으로 로컬 사본을 그대로 둔다.
-      const approvedIds = apiSpots && new Set(apiSpots.map(s => s.id))
-      const approvedKeys = apiSpots && new Set(apiSpots.map(s => contentKey(s)))
-      const visibleLocal = approvedIds && approvedKeys
-        ? dedupLocal.filter(s => approvedIds.has(s.id) || approvedKeys.has(contentKey(s)))
-        : dedupLocal
+    // apiSpots = 서버의 승인 목록
+    const merge = (apiSpots: Spot[]) => {
+      // 승인된 사연만 노출 — 로컬 사본도 서버 승인 목록에 있는 것만
+      const approvedIds = new Set(apiSpots.map(s => s.id))
+      const approvedKeys = new Set(apiSpots.map(s => contentKey(s)))
+      const visibleLocal = dedupLocal.filter(s => approvedIds.has(s.id) || approvedKeys.has(contentKey(s)))
       // 미승인 사연은 localStorage에는 남겨 둔다(승인되면 다시 보이고, 비밀번호 수정도 가능).
 
       const seen = new Set(visibleLocal.map(contentKey))
@@ -159,8 +159,8 @@ export default function App() {
       // 서버 사본 추가 — id가 새롭고 '내용도' 아직 없는 것만
       // (서버 사본 spot-… 이 로컬 사본 local-… 과 내용 같으면 건너뜀 → 중복 표시 방지)
       const knownIds = visibleIds
-      const apiByContent = new Map((apiSpots ?? []).map(s => [contentKey(s), s]))
-      const apiOnly = (apiSpots ?? []).filter(s => {
+      const apiByContent = new Map(apiSpots.map(s => [contentKey(s), s]))
+      const apiOnly = apiSpots.filter(s => {
         const k = contentKey(s)
         if (knownIds.has(s.id) || seen.has(k)) return false
         seen.add(k) // API 목록 내부의 중복도 방지
@@ -183,14 +183,15 @@ export default function App() {
       ].filter(inDaegu))
     }
 
-    // 서버 응답 전에는 비워 둔다(미승인 로컬 사본이 잠깐이라도 보이지 않도록). 예시(목업) 사연은 2026-09-28부로 노출 중단
-    setSpots([])
-
-    fetch('/api/spots?approved=true')
+    // 서버 응답 전에는 비어 있다(초기 state=[] — 미승인 로컬 사본이 잠깐이라도 보이지 않도록). 예시(목업) 사연은 2026-09-28부로 노출 중단
+    // 서버를 못 불러오면 화면을 그대로 둔다 — 예전엔 이때 로컬 사본을 전부 띄워 미승인 글이 보였다.
+    fetch('/api/spots?approved=true', { cache: 'no-store' })
       .then(r => r.json())
-      .then((apiSpots: Spot[]) => merge(Array.isArray(apiSpots) ? apiSpots : null))
-      .catch(() => merge(null))
+      .then((apiSpots: Spot[]) => { if (Array.isArray(apiSpots)) merge(apiSpots) })
+      .catch(() => {})
   }, [])
+
+  useEffect(() => { loadSpots() }, [loadSpots])
 
   /* ── 뷰 전환 ── */
   const transition = (fn: () => void) => {
@@ -213,6 +214,7 @@ export default function App() {
 
   /* ── 인트로 → 새 두번째 페이지: 별자리 지도부터 진입 ── */
   const goSecond = () => transition(() => {
+    loadSpots()  // 승인 목록 새로 고침(키오스크 대비)
     setSelectedRegion(DAEGU)
     setSecondView('constellation')  // 입장하면 지도가 먼저
     setReaderStart(null)
@@ -310,14 +312,13 @@ export default function App() {
       nickname: data.nickname, sns: data.sns,
       visitorType: data.visitorType, daeguAnswer: data.daeguAnswer,
       imageUrl: data.imageUrl, password: data.password,
-      // 관리자 승인 전 상태. 작성 직후 이번 세션 화면에는 보이지만,
-      // 새로고침 뒤에는 서버가 승인한 뒤에야 다시 보인다.
+      // 관리자 승인 전 상태. 화면 목록(spots)에는 넣지 않는다 — 예전엔 작성 직후부터
+      // 그 기기 화면에 바로 떠서, 새로고침을 안 하는 전시 키오스크에서는 미승인 글이
+      // 다음 관람객들에게 계속 보였다. 승인되면 다음 목록 갱신 때 서버 사본으로 보인다.
       approved: false, createdAt: new Date().toISOString(),
     }
 
     const key = contentKey(newSpot)
-    // 이미 같은 내용이 있으면(더블클릭 등) 다시 추가하지 않음
-    setSpots(prev => prev.some(s => contentKey(s) === key) ? prev : [newSpot, ...prev])
 
     try {
       const raw = localStorage.getItem(LS_KEY)
@@ -329,7 +330,7 @@ export default function App() {
 
     // API: imageUrl(base64)·password 제외. id를 함께 보내 서버 사본과 로컬 사본의
     // id를 일치시킴 → 새로고침 시 id 기준으로도 중복 방지.
-    fetch('/api/spots', {
+    const res = await fetch('/api/spots', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -341,7 +342,11 @@ export default function App() {
         visitorType: data.visitorType, daeguAnswer: data.daeguAnswer,
         password: data.password, // 작성자 수정용(서버 저장, GET엔 노출 안 됨)
       }),
-    }).catch(() => {})
+    })
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      throw new Error((e as { error?: string }).error ?? '접수하지 못했어요. 다시 시도해 주세요.')
+    }
   }, [])
 
   /* ── 사연 수정(작성자 비밀번호) — 서버 저장 후 상태·localStorage 갱신 ── */
