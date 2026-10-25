@@ -38,7 +38,7 @@ export default function ContributePage() {
     try {
       const query = encodeURIComponent(placeName.trim())
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ko`,
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ko&viewbox=128.3,35.55,128.95,36.35&bounded=1`,
         { headers: { 'Accept-Language': 'ko' } }
       )
       const data = await res.json()
@@ -47,7 +47,7 @@ export default function ContributePage() {
         setFoundAddress(place.display_name.split(',').slice(0, 3).join(', '))
         setCoords({ lat: parseFloat(place.lat), lng: parseFloat(place.lon) })
       } else {
-        setSearchError('위치를 찾지 못했어요. 더 구체적인 이름으로 검색해보세요.')
+        setSearchError('대구(경산·군위 포함) 안에서 찾지 못했어요. 더 구체적인 이름으로 검색해보세요.')
       }
     } catch {
       setSearchError('검색 중 오류가 발생했어요. 다시 시도해주세요.')

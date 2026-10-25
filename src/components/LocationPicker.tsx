@@ -69,7 +69,7 @@ export default function LocationPicker({ pin, visitorType, onVisitorTypeChange, 
         setResults(data.results)
         setShowResults(true)
       } else {
-        setError('위치를 찾을 수 없어요. 상호명이나 주소를 더 구체적으로 입력해보세요.')
+        setError('대구(경산·군위 포함) 안에서 찾지 못했어요. 대구 안의 상호명이나 주소로 검색해 주세요.')
       }
     } catch {
       setSearching(false)

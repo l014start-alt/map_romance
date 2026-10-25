@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Category, VisitorType } from '@/types'
+import { Category, VisitorType, isNearDaegu } from '@/types'
 import { getSupabase, rowToSpot } from '@/lib/supabase'
 import { notifyNewSpot } from '@/lib/notify'
 
@@ -31,6 +31,10 @@ export async function POST(req: NextRequest) {
   }
   if (!moment?.trim()) {
     return NextResponse.json({ error: '사연을 입력해주세요.' }, { status: 400 })
+  }
+  // 대구 전용 — 좌표가 대구(경산·군위 포함) 밖이면 받지 않는다
+  if (lat != null && lng != null && !isNearDaegu({ lat, lng })) {
+    return NextResponse.json({ error: '대구(경산·군위 포함) 안의 장소만 남길 수 있어요.' }, { status: 400 })
   }
   // 글자수 제한 없음(사실상). 악성 초대용량만 방어하는 넉넉한 상한.
   if ((moment as string).trim().length > 20000) {

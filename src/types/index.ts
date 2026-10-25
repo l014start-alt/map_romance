@@ -39,10 +39,14 @@ export function storyHeadline(spot: Spot): string {
   return m.length > 26 ? `${m.slice(0, 26)}…` : m
 }
 
-/** 대구(+군위·경산 등 맞닿은 곳) 범위 안의 좌표인지 — 별자리 지도는 이 안쪽만 그린다 */
+/** 대구(+군위·경산 등 맞닿은 곳) 좌표 범위 — 위치 검색·제출·별자리 지도 공통 */
+export const DAEGU_BOUNDS = { minLat: 35.55, maxLat: 36.35, minLng: 128.3, maxLng: 128.95 }
+
+/** 대구 범위 안의 좌표인지 — 별자리 지도는 이 안쪽만 그리고, 위치 검색·제출도 이 안쪽만 받는다 */
 export function isNearDaegu(spot: Pick<Spot, 'lat' | 'lng'>): boolean {
   if (spot.lat == null || spot.lng == null) return false
-  return spot.lat > 35.55 && spot.lat < 36.35 && spot.lng > 128.3 && spot.lng < 128.95
+  const b = DAEGU_BOUNDS
+  return spot.lat > b.minLat && spot.lat < b.maxLat && spot.lng > b.minLng && spot.lng < b.maxLng
 }
 
 /** 검색어가 장소명·주소·대구 한마디·사연·닉네임 중 어디에든 들어있는지(띄어쓰기·대소문자 무시) */

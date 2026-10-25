@@ -3,6 +3,8 @@
  * Client Secret은 서버에서만 사용 — 브라우저에서는 /api/geocode 라우트를 경유
  */
 
+import { DAEGU_BOUNDS, isNearDaegu } from '@/types'
+
 export interface GeoResult {
   lat: number
   lng: number
@@ -23,21 +25,29 @@ const NAVER_HEADERS = {
   'X-NCP-APIGW-API-KEY': process.env.NAVER_CLIENT_SECRET ?? '',
 }
 
-/** 주소·상호명 → 최대 5개 결과 (Kakao 우선 → Naver → Nominatim 폴백) */
+/** 주소·상호명 → 대구(경산·군위 포함) 안의 결과만 (Kakao 우선 → Naver → Nominatim 폴백) */
 export async function geocodeMultiple(query: string): Promise<GeoResultItem[]> {
-  const kakaoResults = await geocodeKakao(query)
+  const kakaoResults = (await geocodeKakao(query)).filter(inDaegu)
   if (kakaoResults.length > 0) return kakaoResults
-  const naverResults = await geocodeNaverMultiple(query)
+  const naverResults = (await geocodeNaverMultiple(query)).filter(inDaegu)
   if (naverResults.length > 0) return naverResults
-  return geocodeNominatim(query)
+  return (await geocodeNominatim(query)).filter(inDaegu)
 }
+
+/** 좌표 범위(사각형)에 영천·칠곡 등 맞닿은 시군이 일부 걸리므로 주소로 한 번 더 거른다 (군위는 '대구 군위군') */
+function inDaegu(r: GeoResultItem): boolean {
+  return isNearDaegu(r) && /대구|경산/.test(`${r.address} ${r.roadAddress ?? ''} ${r.jibunAddress ?? ''}`)
+}
+
+// 카카오 rect = 좌하단 경도,위도,우상단 경도,위도 — 대구 범위 안에서만 찾는다
+const DAEGU_RECT = `${DAEGU_BOUNDS.minLng},${DAEGU_BOUNDS.minLat},${DAEGU_BOUNDS.maxLng},${DAEGU_BOUNDS.maxLat}`
 
 /** Kakao 키워드 검색 → 상호명·주소 통합 결과 */
 export async function geocodeKakao(query: string): Promise<GeoResultItem[]> {
   const key = process.env.KAKAO_REST_API_KEY
   if (!key) return []
   try {
-    const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=5`
+    const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=10&rect=${DAEGU_RECT}`
     const res = await fetch(url, {
       headers: { Authorization: `KakaoAK ${key}` },
     })
@@ -87,7 +97,7 @@ async function geocodeNaverMultiple(query: string): Promise<GeoResultItem[]> {
 async function geocodeNominatim(query: string): Promise<GeoResultItem[]> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=kr&accept-language=ko`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=kr&accept-language=ko&viewbox=${DAEGU_RECT}&bounded=1`,
       { headers: { 'User-Agent': 'map-romance/1.0 (l014start@gmail.com)' } }
     )
     const data = await res.json() as Array<{ lat: string; lon: string; display_name: string; name: string; type: string }>
