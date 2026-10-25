@@ -11,7 +11,7 @@ import FeedView from '@/components/FeedView'
 import Footer from '@/components/Footer'
 import StoryFeed from '@/components/StoryFeed'             // 사연 피드(시간순 그리드 + 좌지도/우내용)
 import ConstellationMap from '@/components/ConstellationMap' // 별자리 지도(지도로 보기)
-import { Spot, Category, LocationGroup, VisitorType, storyHeadline } from '@/types'
+import { Spot, Category, LocationGroup, VisitorType, storyHeadline, isNearDaegu } from '@/types'
 import { saveVisitorSelection, setCollectionExcluded } from '@/lib/visitorStats' // 요구사항 3: 선택 통계 저장
 import { randomQuote } from '@/lib/quotes' // 낭젊사 매거진 글귀(사진 크게보기 랜덤 표시)
 
@@ -167,6 +167,9 @@ export default function App() {
         return true
       })
 
+      // 대구 전용 서비스 — 좌표가 대구 밖인 사연은 (승인됐든 기기에 사본이 남았든) 어디에도 띄우지 않는다
+      const inDaegu = (s: Spot) => s.lat == null || s.lng == null || isNearDaegu(s)
+
       setSpots([
         // 구분이 생기기 전에 저장된 로컬 사본은 현지인/관광객 탭에서 빠져버리므로
         // 서버가 가진 값으로 보강한다(사연 내용은 로컬 사본 그대로 둠).
@@ -177,7 +180,7 @@ export default function App() {
           return { ...s, visitorType: server.visitorType, daeguAnswer: s.daeguAnswer ?? server.daeguAnswer }
         }),
         ...apiOnly,
-      ])
+      ].filter(inDaegu))
     }
 
     // 서버 응답 전에는 비워 둔다(미승인 로컬 사본이 잠깐이라도 보이지 않도록). 예시(목업) 사연은 2026-09-28부로 노출 중단
